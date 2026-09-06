@@ -1,0 +1,23 @@
+{
+  "groupedAvailability": [],
+  "groupedInstruments": [
+    {
+      "name": "Equities",
+      "groupedValue": 100,
+      "instruments": [
+        {
+          "ticker": "AAPL",
+          "description": "Synthetic equity position",
+          "currency": "USD",
+          "price": 10,
+          "amount": 100,
+          "quantity": 10,
+          "collateralQuantity": 0,
+          "isin": "US0378331005",
+          "cajaValoresCode": 123,
+          "ppc": null
+        }
+      ]
+    }
+  ]
+}
