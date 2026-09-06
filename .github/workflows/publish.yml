@@ -30,7 +30,9 @@ jobs:
       - run: bun test
       - run: bun run lint
       - name: Verify tag matches package version
-        run: test "${GITHUB_REF_NAME#v}" = "$(node -p \"require('./package.json').version\")"
+        run: |
+          package_version="$(node -p "require('./package.json').version")"
+          test "${GITHUB_REF_NAME#v}" = "$package_version"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
