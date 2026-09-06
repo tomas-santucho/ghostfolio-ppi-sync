@@ -1,0 +1,24 @@
+[
+  {
+    "agreementDate": "2026-08-14T00:00:00-03:00",
+    "settlementDate": "2026-08-14T00:00:00-03:00",
+    "currency": "Dolar Saxo",
+    "amount": 1.08,
+    "price": 0,
+    "description": "Movimiento Manual / Deposit for Dividend AAPL",
+    "ticker": "Ticker not found",
+    "quantity": 0,
+    "balance": 0
+  },
+  {
+    "agreementDate": "2026-08-14T00:00:00-03:00",
+    "settlementDate": "2026-08-14T00:00:00-03:00",
+    "currency": "Dolar Saxo",
+    "amount": -0.32,
+    "price": 0,
+    "description": "Movimiento Manual / Tax for Dividend AAPL",
+    "ticker": "Ticker not found",
+    "quantity": 0,
+    "balance": 0
+  }
+]

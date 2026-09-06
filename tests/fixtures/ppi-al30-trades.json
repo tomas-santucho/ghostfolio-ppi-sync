@@ -1,0 +1,24 @@
+[
+  {
+    "agreementDate": "2026-05-20T00:00:00-03:00",
+    "settlementDate": "2026-05-20T00:00:00-03:00",
+    "currency": "Pesos",
+    "amount": 697620.8,
+    "price": 909.2,
+    "description": "VENTA AL30",
+    "ticker": "AL30",
+    "quantity": -772,
+    "balance": 0.01
+  },
+  {
+    "agreementDate": "2026-05-20T00:00:00-03:00",
+    "settlementDate": "2026-05-20T00:00:00-03:00",
+    "currency": "Dolar Cable",
+    "amount": -474.73,
+    "price": 0.6112,
+    "description": "COMPRA AL30",
+    "ticker": "AL30",
+    "quantity": 772,
+    "balance": -6.13
+  }
+]

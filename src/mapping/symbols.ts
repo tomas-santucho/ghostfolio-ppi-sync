@@ -1,0 +1,1 @@
+export function normalizeSymbol(symbol:string|undefined):string|undefined { const value=symbol?.trim().toUpperCase(); if(!value||['TICKER NOT FOUND','NOT FOUND','N/A','NA','-'].includes(value))return undefined; return value; }

@@ -1,0 +1,30 @@
+[
+  {
+    "symbol": "AAPLD",
+    "mappedSymbol": "AAPL",
+    "isin": "ARDEUT116183",
+    "market": "BYMA",
+    "dataSource": "MANUAL"
+  },
+  {
+    "symbol": "AL30",
+    "mappedSymbol": "GF_PPI_AL30",
+    "isin": "ARARGE3209S6",
+    "market": "BYMA",
+    "dataSource": "MANUAL"
+  },
+  {
+    "symbol": "AL30C",
+    "mappedSymbol": "GF_PPI_AL30C",
+    "isin": "ARARGE3209S6",
+    "market": "BYMA",
+    "dataSource": "MANUAL"
+  },
+  {
+    "symbol": "AL30D",
+    "mappedSymbol": "GF_PPI_AL30D",
+    "isin": "ARARGE3209S6",
+    "market": "BYMA",
+    "dataSource": "MANUAL"
+  }
+]

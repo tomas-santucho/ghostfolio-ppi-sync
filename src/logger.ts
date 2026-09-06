@@ -1,0 +1,2 @@
+export type LogLevel='debug'|'info'|'warn'|'error';
+export class Logger { constructor(private readonly level:LogLevel='info') {} log(level:LogLevel,message:string):void { const levels:LogLevel[]=['debug','info','warn','error']; if(levels.indexOf(level)>=levels.indexOf(this.level)) console[level==='debug'?'log':level](message); } debug(m:string){this.log('debug',m)} info(m:string){this.log('info',m)} warn(m:string){this.log('warn',m)} error(m:string){this.log('error',m)} }

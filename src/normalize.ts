@@ -1,0 +1,6 @@
+import { z } from 'zod';
+import type { NormalizedTransaction, PpiTransactionInput, TransactionType } from './types.js';
+
+const inputSchema=z.object({type:z.string().min(1),date:z.string().datetime({offset:true}),currency:z.string().min(1),symbol:z.string().optional(),isin:z.string().optional(),quantity:z.string().optional(),unitPrice:z.string().optional(),fee:z.string().optional(),externalId:z.string().optional(),description:z.string().optional()});
+const types=new Set<TransactionType>(['BUY','SELL','DIVIDEND','INTEREST','FEE','DEPOSIT','WITHDRAWAL']);
+export function normalizeTransaction(input:PpiTransactionInput, accountId:string):NormalizedTransaction|undefined { const value=inputSchema.parse(input); const type=value.type.toUpperCase() as TransactionType; if(!types.has(type)) return undefined; const id=value.externalId ?? ['ppi',accountId,value.date,type,value.symbol??'',value.quantity??'',value.unitPrice??'',value.currency].join('|').toLowerCase(); return {id,accountId,type,symbol:value.symbol,isin:value.isin,currency:value.currency,date:new Date(value.date),quantity:value.quantity,unitPrice:value.unitPrice,fee:value.fee,externalId:value.externalId,description:value.description,source:'ppi'}; }
