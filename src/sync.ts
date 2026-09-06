@@ -22,6 +22,9 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'searchInstru
     if(!base){unsupported++;options.warn?.(`Unsupported PPI transaction: ${transaction.description} (currency=${transaction.currency}, ticker=${transaction.ticker??'none'})`);continue;}
     if((!transaction.ticker||transaction.ticker==='Ticker not found')&&!instrument&&base.market==='BYMA'){unsupported++;options.warn?.(`Inferred BYMA symbol requires an explicit Ghostfolio symbol override: ${base.symbol??'unknown'}`);continue;}
     const override=resolveSymbolOverride(transaction.ticker,options.symbolOverrides??[])??resolveSymbolOverride(base.symbol,options.symbolOverrides??[]);
+    if((base.type==='BUY'||base.type==='SELL')&&!instrument&&!override){
+      unsupported++;options.warn?.(`PPI trade ${base.symbol??'unknown'} requires an instrument resolution or explicit Ghostfolio symbol override`);continue;
+    }
     if(instrument?.market==='BYMA'&&instrument.type==='BONOS'&&!override){
       unsupported++;options.warn?.(`PPI bond ${instrument.ticker} requires an explicit manual symbol override`);continue;
     }

@@ -1,6 +1,16 @@
 {
   "activities": [
     {
+      "id": "anonymized-buy-id",
+      "type": "BUY",
+      "date": "2024-01-15T00:00:00.000Z",
+      "currency": "ARS",
+      "quantity": 10,
+      "unitPrice": 100,
+      "fee": 0,
+      "comment": "ppi-sync:anonymized-buy-fingerprint"
+    },
+    {
       "id": "anonymized-dividend-id",
       "type": "DIVIDEND",
       "date": "2026-08-14T03:00:00.000Z",
