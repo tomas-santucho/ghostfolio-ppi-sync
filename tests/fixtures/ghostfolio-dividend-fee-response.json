@@ -1,0 +1,24 @@
+{
+  "activities": [
+    {
+      "id": "anonymized-dividend-id",
+      "type": "DIVIDEND",
+      "date": "2026-08-14T03:00:00.000Z",
+      "currency": "USD",
+      "quantity": 1,
+      "unitPrice": 1.23,
+      "fee": 0,
+      "comment": "ppi-sync:anonymized-dividend-fingerprint"
+    },
+    {
+      "id": "anonymized-fee-id",
+      "type": "FEE",
+      "date": "2026-08-14T03:00:00.000Z",
+      "currency": "USD",
+      "quantity": 1,
+      "unitPrice": 0.45,
+      "fee": 0,
+      "comment": "ppi-sync:anonymized-fee-fingerprint"
+    }
+  ]
+}
