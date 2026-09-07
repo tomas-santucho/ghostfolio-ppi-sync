@@ -30,7 +30,7 @@ PPI and Ghostfolio data is validated with Zod. Amounts, quantities, prices, and 
 
 Unsupported or ambiguous movements are logged as warnings and skipped.
 
-Read-only PPI requests use timeouts and retry only transient `408` and `5xx` responses. A `429` rate limit is never retried and stops the run immediately.
+Read-only PPI requests use timeouts and bounded retries for connection failures, transient `408`, and `5xx` responses. A PPI `429` rate limit is never retried: it stops the run immediately, marks history as incomplete, and returns a nonzero exit code. See [the PPI operating guide](ppi.md) and the [integration and safe-operation playbook](integration-playbook.md) before running diagnostics or an import.
 
 ## Requirements
 
@@ -64,6 +64,8 @@ PPI_ORDER_ENRICHMENT=false
 GHOSTFOLIO_URL=https://ghostfolio.example
 GHOSTFOLIO_SECURITY_TOKEN=...
 GHOSTFOLIO_ACCOUNT_ID=...
+# Optional: positive integer from 1 to 500; defaults to 100.
+GHOSTFOLIO_BATCH_SIZE=100
 
 SYNC_FROM_DATE=2024-01-01
 DRY_RUN=false
@@ -73,6 +75,8 @@ LOG_LEVEL=info
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
 Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, and `BOOTSTRAP_HOLDINGS_FILE`.
+
+Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
 ## BYMA bonds and manual assets
 
@@ -111,15 +115,15 @@ BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets f
 Deposits and withdrawals are opt-in. Before enabling them, create four `MANUAL` assets in Ghostfolio and use their symbols below. PPI has distinct USD custody/settlement buckets; Ghostfolio still uses ISO `USD`, so the asset identity — rather than the currency code — keeps them separate.
 
 ```dotenv
-PPI_CASH_ASSETS={"ARS":"PPI_CASH_ARS","USD_GLOBAL":"PPI_CASH_USD","USD_MEP":"PPI_CASH_USD_MEP","USD_CCL":"PPI_CASH_USD_CCL"}
+PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
 ```
 
 | PPI label family | Ghostfolio asset | ISO currency |
 | --- | --- | --- |
-| Pesos | `PPI_CASH_ARS` | `ARS` |
-| `Dolar Saxo` / global USD | `PPI_CASH_USD` | `USD` |
-| `MEP` / `billete` | `PPI_CASH_USD_MEP` | `USD` |
-| `CCL` / `cable` / `divisa` | `PPI_CASH_USD_CCL` | `USD` |
+| Pesos | `GF_PPI_CASH_ARS` | `ARS` |
+| `Dolar Saxo` / global USD | `GF_PPI_CASH_USD` | `USD` |
+| `MEP` / `billete` | `GF_PPI_CASH_USD_MEP` | `USD` |
+| `CCL` / `cable` / `divisa` | `GF_PPI_CASH_USD_CCL` | `USD` |
 
 With this configuration, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, transfers, and cash assets omitted from the configuration are warned and skipped.
 
@@ -150,6 +154,14 @@ bun run sync
 ```
 
 The process is idempotent: re-running the same source movements does not create duplicates.
+
+Use a dedicated Ghostfolio test account for every first validation and real import. The [integration and safe-operation playbook](integration-playbook.md) defines the required diagnostic, dry-run, import, rerun, recovery, and data-handling procedure.
+
+### Reconciliation and recovery
+
+Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, and `HTTP failed`. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
+
+`GHOSTFOLIO_BATCH_SIZE` controls how many activities are sent per import request. It defaults to `100` and accepts only integers from `1` to `500`. Activities retain their source order across batches. A failure reports the batch number, its inclusive activity range, and its actual size.
 
 `--ppi-orders` is a diagnostic read-only command: it reports only the count of historical PPI orders and never prints order IDs or trade details.
 

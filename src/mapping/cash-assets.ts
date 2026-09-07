@@ -5,11 +5,13 @@ export const cashAssetBuckets = ['ARS', 'USD_GLOBAL', 'USD_MEP', 'USD_CCL'] as c
 export type CashAssetBucket = typeof cashAssetBuckets[number];
 export type CashAssetMap = Partial<Record<CashAssetBucket, string>>;
 
+const manualAssetSymbol = z.string().trim().regex(/^GF_[A-Z0-9_]+$/i, 'Ghostfolio MANUAL asset symbols must start with GF_');
+
 const cashAssetMapSchema = z.object({
-  ARS: z.string().trim().min(1).optional(),
-  USD_GLOBAL: z.string().trim().min(1).optional(),
-  USD_MEP: z.string().trim().min(1).optional(),
-  USD_CCL: z.string().trim().min(1).optional()
+  ARS: manualAssetSymbol.optional(),
+  USD_GLOBAL: manualAssetSymbol.optional(),
+  USD_MEP: manualAssetSymbol.optional(),
+  USD_CCL: manualAssetSymbol.optional()
 }).strict();
 
 export function parseCashAssetMap(value: unknown): CashAssetMap {
