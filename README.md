@@ -64,6 +64,8 @@ PPI_ORDER_ENRICHMENT=false
 GHOSTFOLIO_URL=https://ghostfolio.example
 GHOSTFOLIO_SECURITY_TOKEN=...
 GHOSTFOLIO_ACCOUNT_ID=...
+# Optional: positive integer from 1 to 500; defaults to 100.
+GHOSTFOLIO_BATCH_SIZE=100
 
 SYNC_FROM_DATE=2024-01-01
 DRY_RUN=false
@@ -156,6 +158,8 @@ The process is idempotent: re-running the same source movements does not create 
 ### Reconciliation and recovery
 
 Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, and `HTTP failed`. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
+
+`GHOSTFOLIO_BATCH_SIZE` controls how many activities are sent per import request. It defaults to `100` and accepts only integers from `1` to `500`. Activities retain their source order across batches. A failure reports the batch number, its inclusive activity range, and its actual size.
 
 `--ppi-orders` is a diagnostic read-only command: it reports only the count of historical PPI orders and never prints order IDs or trade details.
 
