@@ -2,6 +2,8 @@
 
 This synchronizer is read-only. It authenticates with PPI and uses only account movements, historical orders (when explicitly enabled), account balances/positions, and instrument-search endpoints. It has no order-placement, cancellation, transfer, withdrawal, or account-modification calls.
 
+For the complete test-account validation, controlled import, rerun, recovery, and data-handling procedure, follow the [integration and safe-operation playbook](integration-playbook.md).
+
 ## Safe operating procedure
 
 1. Set `SYNC_FROM_DATE` and, for a bounded run, `SYNC_TO_DATE`.
