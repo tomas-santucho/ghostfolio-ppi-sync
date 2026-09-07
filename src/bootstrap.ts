@@ -31,7 +31,8 @@ export function bootstrapHoldings(holdings:BootstrapHolding[],ppiAccountId:strin
 
 function existingBootstrapComments(activities:GhostfolioActivity[],accountId:string):Set<string>{return new Set(activities.filter(activity=>activity.accountId===accountId&&typeof activity.comment==='string').map(activity=>activity.comment as string));}
 
-export async function importBootstrapHoldings(holdings:BootstrapHolding[],ppiAccountId:string,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,ghostfolioAccountId:string,options:{dryRun:boolean}):Promise<BootstrapSummary>{
+export async function importBootstrapHoldings(holdings:BootstrapHolding[],ppiAccountId:string,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,ghostfolioAccountId:string,options:{dryRun:boolean;cutoffDate:Date}):Promise<BootstrapSummary>{
+  if(holdings.some(holding=>bootstrapHolding(holding,ppiAccountId).date>=options.cutoffDate))throw new Error('Bootstrap holding date must be before BOOTSTRAP_CUTOFF_DATE');
   const prepared=bootstrapHoldings(holdings,ppiAccountId,ghostfolioAccountId);
   const existing=existingBootstrapComments(await ghostfolio.getActivities(),ghostfolioAccountId);
   const seen=new Set<string>();

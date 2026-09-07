@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseSyncRange } from './config.js';
+import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseBootstrapCutoffDate, parseSyncRange } from './config.js';
 import { importBootstrapHoldings, parseBootstrapHoldings } from './bootstrap.js';
 import { GhostfolioHttpClient } from './ghostfolio/client.js';
 import { Logger } from './logger.js';
@@ -27,9 +27,11 @@ async function main():Promise<void> {
     const file=process.env.BOOTSTRAP_HOLDINGS_FILE;
     if(!file) throw new Error('BOOTSTRAP_HOLDINGS_FILE is required with --bootstrap-holdings');
     const config=loadGhostfolioConfig(process.env);
+    const cutoffDate=parseBootstrapCutoffDate(process.env.BOOTSTRAP_CUTOFF_DATE);
+    if(!cutoffDate) throw new Error('BOOTSTRAP_CUTOFF_DATE is required with --bootstrap-holdings');
     const holdings=parseBootstrapHoldings(JSON.parse(await readFile(file,'utf8')));
     const dryRun=process.argv.includes('--dry-run')||process.env.DRY_RUN==='true';
-    const result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),config.accountId,{dryRun});
+    const result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),config.accountId,{dryRun,cutoffDate});
     logger.info(`Bootstrap ${dryRun?'validated':'imported'} ${result.imported} holdings; skipped ${result.duplicates} duplicates.`);
     return;
   }

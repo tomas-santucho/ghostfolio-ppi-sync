@@ -69,7 +69,15 @@ export class GhostfolioHttpClient implements GhostfolioClient {
       }
       const retryAfter=retryAfterMs(res.headers.get('retry-after'));
       const transient=res.status===408||res.status===429||res.status>=500;
-      if(!transient||attempt===2){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio import HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'import',status:res.status,retryAfterMs:retryAfter});}
+      if(!transient){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio import HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'import',status:res.status,retryAfterMs:retryAfter});}
+      if(res.status!==429){
+        const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));
+        const cause=new HttpRequestError(`Ghostfolio import HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'import',status:res.status,retryAfterMs:retryAfter});
+        pending=await this.reconcileUncertainBatch(pending,cause);
+        if(pending.length===0)return {activities:[],validationFailures:[]};
+        if(attempt===2)throw new GhostfolioUnknownImportOutcomeError({pending:pending.length,cause});
+      }
+      if(attempt===2)throw new HttpRequestError(`Ghostfolio import HTTP error ${res.status}`,{service:'Ghostfolio',operation:'import',status:res.status,retryAfterMs:retryAfter});
       await this.sleeper(retryDelay(attempt,retryAfter));
     }
     throw new Error('Ghostfolio import retry loop exited unexpectedly');
