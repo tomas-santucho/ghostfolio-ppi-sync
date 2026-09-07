@@ -1,7 +1,11 @@
 import { z } from 'zod';
+import { isNumber } from 'lossless-json';
+const ppiDecimalSchema=z.union([z.number().finite(),z.string().refine(isNumber,'Invalid decimal')]);
 export const tokenSchema=z.object({accessToken:z.string().min(1),refreshToken:z.string().min(1),tokenType:z.string().min(1),expires:z.number()});
-export const transactionSchema=z.object({agreementDate:z.string(),settlementDate:z.string().optional(),currency:z.string(),amount:z.number(),price:z.number(),description:z.string(),ticker:z.string().optional(),quantity:z.number(),balance:z.number()});
+export const transactionSchema=z.object({agreementDate:z.string(),settlementDate:z.string().optional(),currency:z.string(),amount:ppiDecimalSchema,price:ppiDecimalSchema,description:z.string(),ticker:z.string().optional(),quantity:ppiDecimalSchema,balance:ppiDecimalSchema});
 export const transactionsSchema=z.array(transactionSchema);
+export const orderSchema=z.object({id:z.number().int(),instrumentType:z.string(),operation:z.string(),ticker:z.string(),status:z.string(),date:z.string(),settlement:z.string(),quantity:ppiDecimalSchema,orderType:z.string(),operationType:z.string(),operationMaxDate:z.string().nullable().optional(),price:ppiDecimalSchema,currency:z.string(),amount:ppiDecimalSchema,externalID:z.string().nullable().optional()}).passthrough();
+export const ordersSchema=z.array(orderSchema);
 export const balancesSchema=z.array(z.object({currency:z.string(),availability:z.array(z.object({name:z.string(),simbol:z.string().optional(),amount:z.number(),settlement:z.string()}))}));
 export const positionSchema=z.object({ticker:z.string(),description:z.string(),currency:z.string(),price:z.number(),amount:z.number(),quantity:z.number(),collateralQuantity:z.number().optional(),isin:z.string().nullable().optional(),cajaValoresCode:z.union([z.string(),z.number()]).nullable().optional(),ppc:z.unknown().optional()}).passthrough();
 export const groupedInstrumentsSchema=z.object({name:z.string(),instruments:z.array(positionSchema),groupedValue:z.number()}).passthrough();
