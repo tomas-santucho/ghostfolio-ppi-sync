@@ -74,6 +74,8 @@ LOG_LEVEL=info
 
 Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, and `BOOTSTRAP_HOLDINGS_FILE`.
 
+Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
+
 ## BYMA bonds and manual assets
 
 BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets first, then map PPI tickers explicitly with `PPI_SYMBOL_OVERRIDES`.
@@ -111,15 +113,15 @@ BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets f
 Deposits and withdrawals are opt-in. Before enabling them, create four `MANUAL` assets in Ghostfolio and use their symbols below. PPI has distinct USD custody/settlement buckets; Ghostfolio still uses ISO `USD`, so the asset identity — rather than the currency code — keeps them separate.
 
 ```dotenv
-PPI_CASH_ASSETS={"ARS":"PPI_CASH_ARS","USD_GLOBAL":"PPI_CASH_USD","USD_MEP":"PPI_CASH_USD_MEP","USD_CCL":"PPI_CASH_USD_CCL"}
+PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
 ```
 
 | PPI label family | Ghostfolio asset | ISO currency |
 | --- | --- | --- |
-| Pesos | `PPI_CASH_ARS` | `ARS` |
-| `Dolar Saxo` / global USD | `PPI_CASH_USD` | `USD` |
-| `MEP` / `billete` | `PPI_CASH_USD_MEP` | `USD` |
-| `CCL` / `cable` / `divisa` | `PPI_CASH_USD_CCL` | `USD` |
+| Pesos | `GF_PPI_CASH_ARS` | `ARS` |
+| `Dolar Saxo` / global USD | `GF_PPI_CASH_USD` | `USD` |
+| `MEP` / `billete` | `GF_PPI_CASH_USD_MEP` | `USD` |
+| `CCL` / `cable` / `divisa` | `GF_PPI_CASH_USD_CCL` | `USD` |
 
 With this configuration, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, transfers, and cash assets omitted from the configuration are warned and skipped.
 
