@@ -3,6 +3,7 @@ import { parseCashAssetMap } from '../src/mapping/cash-assets.js';
 import { normalizedToGhostfolio } from '../src/mapping/normalized-to-ghostfolio.js';
 import { resolveCashAsset } from '../src/mapping/cash-assets.js';
 import { runSync } from '../src/sync.js';
+import type { GhostfolioImportActivity } from '../src/ghostfolio/types.js';
 
 const assets = {
   ARS: 'GF_PPI_CASH_ARS',
@@ -65,6 +66,20 @@ test('imports funding as manual cash BUY/SELL activities and remains idempotent'
     {type:'BUY', symbol:'GF_PPI_CASH_USD_MEP', currency:'USD', quantity:1, unitPrice:20, dataSource:'MANUAL'},
     {type:'SELL', symbol:'GF_PPI_CASH_USD_CCL', currency:'USD', quantity:1, unitPrice:30, dataSource:'MANUAL'}
   ]);
+});
+
+test('imports same-day cash deposits that differ only by the PPI running balance', async () => {
+  const transactions = [
+    {...funding('Pesos', 'Ingreso de Fondos', 1000), balance:1000},
+    {...funding('Pesos', 'Ingreso de Fondos', 1000), balance:2000}
+  ];
+  const imported: GhostfolioImportActivity[] = [];
+  const result = await runSync({getTransactions:async()=>transactions}, {
+    getActivities:async()=>[],
+    importActivities:async(batch:GhostfolioImportActivity[])=>{imported.push(...batch);return {dryRun:true,imported:batch.length,activities:[]};}
+  }, {ppiAccountId:'ppi',ghostfolioAccountId:'ghost',dryRun:true,cashAssets:assets});
+  expect(result).toMatchObject({fetched:2,imported:2,duplicates:0});
+  expect(new Set(imported.map(activity=>activity.comment)).size).toBe(2);
 });
 
 test('does not enable cash imports without an explicit matching asset', async () => {

@@ -20,7 +20,7 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   if (options.enrichOrders && ppi.getOrders) transactions=enrichTransactionsWithOrderIds(transactions,await ppi.getOrders({accountId:options.ppiAccountId,from:options.from,to:options.to}));
   const existing=await ghostfolio.getActivities();
   const existingIds=new Set(existing.map(activity=>typeof activity.comment==='string'?activity.comment.replace(/^ppi-sync:/,''):''));
-  const candidates:GhostfolioImportActivity[]=[]; let duplicates=0; let unsupported=0;
+  const candidates:GhostfolioImportActivity[]=[]; const consumedLegacyIds=new Set<string>(); let duplicates=0; let unsupported=0;
   for(const transaction of transactions) {
     if (isUnreferencedCommission(transaction)) {
       unsupported++;
@@ -47,8 +47,9 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
     if(!ghostfolioActivityTypes.has(base.type)){unsupported++;options.warn?.(`PPI transaction type ${base.type} has no supported Ghostfolio import representation: ${transaction.description}`);continue;}
     const normalized=override?{...base,symbol:override.mappedSymbol.toUpperCase(),isin:override.isin??base.isin,market:override.market??base.market,dataSource:override.dataSource??base.dataSource}:base;
     const id=transactionId(normalized);
-    const legacyId=normalized.externalId?transactionId({...normalized,externalId:undefined}):id;
-    if(existingIds.has(id)||existingIds.has(legacyId)){duplicates++;continue;}
+    const legacyIds=[normalized.externalId?transactionId({...normalized,externalId:undefined}):undefined,normalized.sourceBalance!==undefined?transactionId({...normalized,sourceBalance:undefined}):undefined].filter((value):value is string=>Boolean(value));
+    const legacyId=legacyIds.find(value=>existingIds.has(value)&&!consumedLegacyIds.has(value));
+    if(existingIds.has(id)||legacyId){if(legacyId)consumedLegacyIds.add(legacyId);duplicates++;continue;}
     existingIds.add(id); candidates.push(normalizedToGhostfolio({...normalized,id},options.ghostfolioAccountId));
   }
   if(candidates.length>0)await ghostfolio.importActivities(candidates,{dryRun:options.dryRun});
