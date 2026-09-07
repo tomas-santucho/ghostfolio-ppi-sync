@@ -30,6 +30,8 @@ PPI and Ghostfolio data is validated with Zod. Amounts, quantities, prices, and 
 
 Unsupported or ambiguous movements are logged as warnings and skipped.
 
+Read-only PPI requests use timeouts and retry only transient `408` and `5xx` responses. A `429` rate limit is never retried and stops the run immediately.
+
 ## Requirements
 
 - Bun 1.x
@@ -56,6 +58,8 @@ PPI_CLIENT_KEY=...
 PPI_PUBLIC_KEY=...
 PPI_PRIVATE_KEY=...
 PPI_ACCOUNT_ID=...
+# Optional: fetch PPI historical orders for exact, read-only fingerprint enrichment.
+PPI_ORDER_ENRICHMENT=false
 
 GHOSTFOLIO_URL=https://ghostfolio.example
 GHOSTFOLIO_SECURITY_TOKEN=...
@@ -68,7 +72,7 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, and `BOOTSTRAP_HOLDINGS_FILE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, and `BOOTSTRAP_HOLDINGS_FILE`.
 
 ## BYMA bonds and manual assets
 
@@ -102,6 +106,25 @@ BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets f
 
 `symbol` is the PPI ticker and `mappedSymbol` is the Ghostfolio asset. AL30, AL30C, and AL30D remain separate because their trading currencies differ.
 
+## PPI cash balances: ARS, USD, MEP and CCL
+
+Deposits and withdrawals are opt-in. Before enabling them, create four `MANUAL` assets in Ghostfolio and use their symbols below. PPI has distinct USD custody/settlement buckets; Ghostfolio still uses ISO `USD`, so the asset identity — rather than the currency code — keeps them separate.
+
+```dotenv
+PPI_CASH_ASSETS={"ARS":"PPI_CASH_ARS","USD_GLOBAL":"PPI_CASH_USD","USD_MEP":"PPI_CASH_USD_MEP","USD_CCL":"PPI_CASH_USD_CCL"}
+```
+
+| PPI label family | Ghostfolio asset | ISO currency |
+| --- | --- | --- |
+| Pesos | `PPI_CASH_ARS` | `ARS` |
+| `Dolar Saxo` / global USD | `PPI_CASH_USD` | `USD` |
+| `MEP` / `billete` | `PPI_CASH_USD_MEP` | `USD` |
+| `CCL` / `cable` / `divisa` | `PPI_CASH_USD_CCL` | `USD` |
+
+With this configuration, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, transfers, and cash assets omitted from the configuration are warned and skipped.
+
+Do not model MEP/CCL conversions automatically yet. They require a verified relationship between the source and destination PPI movements; the synchronizer will not infer one from adjacent cash rows.
+
 ## Run
 
 Always start with a dry-run:
@@ -114,6 +137,7 @@ Other useful commands:
 
 ```bash
 bun run sync --ppi-only
+bun run sync --ppi-orders
 bun run sync --ppi-account
 bun run sync --ghostfolio-only
 bun run sync --bootstrap-holdings --dry-run
@@ -126,6 +150,12 @@ bun run sync
 ```
 
 The process is idempotent: re-running the same source movements does not create duplicates.
+
+`--ppi-orders` is a diagnostic read-only command: it reports only the count of historical PPI orders and never prints order IDs or trade details.
+
+### Optional order enrichment
+
+Set `PPI_ORDER_ENRICHMENT=true` only when PPI returns historical rows from its read-only `Order/Orders` endpoint. The synchronizer then adds the documented PPI order ID to a trade fingerprint only when one order matches the movement uniquely across direction, ticker, currency, UTC day, quantity, price, and amount. It never guesses a commission association. Existing imports created without an order ID remain duplicate-safe.
 
 ## Bootstrap existing holdings
 
@@ -140,6 +170,8 @@ docker run --rm --env-file .env ppi-ghostfolio-sync
 
 The container is one-shot. Scheduling is intentionally external to the project.
 
+The final image runs as the non-root `bun` user and contains only the bundled CLI and runtime manifest; `.env`, tests, local PPI documentation and Git metadata are excluded from the build context.
+
 ## Development
 
 ```bash
@@ -150,15 +182,17 @@ bun run lint
 
 ## Limitations
 
-- DEPOSIT and WITHDRAWAL are skipped because the current Ghostfolio import endpoint rejects those types.
+- DEPOSIT and WITHDRAWAL require the explicit `PPI_CASH_ASSETS` configuration and pre-created Ghostfolio MANUAL assets. They are otherwise skipped.
 - FCI, cauciones, ONs, amortizing bonds, exchanges, and splits are skipped pending explicit mapping rules and fixtures.
-- Fees are imported only when their association with a movement is unambiguous.
+- The observed PPI exchange and split rows have no instrument execution data; they are not converted into synthetic BUY or SELL activities.
+- A standalone commission is reported and skipped unless PPI provides a stable association with its originating trade.
+- Interest and coupon movements require a supported currency, a positive amount, and a resolvable PPI instrument or explicit override. A PPI `RENTA. / <ticker>` movement can be normalized as `INTEREST`, but bonds still require a pre-created manual Ghostfolio asset and an explicit override. The observed PPI `DolarCV10000-Loc.` currency label remains intentionally unsupported because it does not match a documented AL30 species.
 
 ## Publishing
 
 Pushing a tag matching `v*` triggers the GitHub Actions release workflow. It runs typecheck, tests and lint, verifies that the tag matches `package.json`, and publishes the container image to GitHub Container Registry (GHCR). The workflow uses GitHub's built-in token with `packages: write`; no npm token or extra registry secret is required.
 
-For example, tag `v0.1.0` publishes `ghcr.io/tomas-santucho/ghostfolio-ppi-sync:v0.1.0` and updates `ghcr.io/tomas-santucho/ghostfolio-ppi-sync:latest`.
+For example, tag `v0.2.0` publishes `ghcr.io/tomas-santucho/ghostfolio-ppi-sync:v0.2.0` and updates `ghcr.io/tomas-santucho/ghostfolio-ppi-sync:latest`.
 
 ## License
 

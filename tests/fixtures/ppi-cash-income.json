@@ -1,0 +1,123 @@
+[
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Ingreso de Fondos ",
+    "currency": "Pesos",
+    "amount": 100.25,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Ingreso de Fondos ",
+    "currency": "Dolar MEP - COM 7340",
+    "amount": 123.45,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Retiro de Fondos ",
+    "currency": "Pesos",
+    "amount": -30.25,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "ND transferencia deposito desde 111111 a 222222 01/02",
+    "currency": "Pesos",
+    "amount": -10,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Dividendo en efectivo / IRSA",
+    "currency": "Pesos",
+    "amount": 5.5,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Movimiento Manual / Deposit for Dividend AAPL",
+    "currency": "Dolar Saxo",
+    "amount": 2.5,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Movimiento Manual / Tax for Dividend AAPL",
+    "currency": "Dolar Saxo",
+    "amount": -0.75,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Ret Ganancias Div. IRSA",
+    "currency": "Pesos",
+    "amount": -0.25,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "Comisiones Opciones SAXO",
+    "currency": "Dolar Saxo",
+    "amount": -1.25,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "RENTA. / AL30",
+    "currency": "DolarCV10000-Loc.",
+    "amount": 2.2,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  },
+  {
+    "agreementDate": "2024-02-01T03:00:00Z",
+    "settlementDate": "2024-02-02T03:00:00Z",
+    "description": "RENTA. / AL30",
+    "currency": "Pesos",
+    "amount": -2.2,
+    "price": 0,
+    "quantity": 0,
+    "ticker": "Ticker not found",
+    "balance": 0
+  }
+]

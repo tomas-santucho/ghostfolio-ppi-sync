@@ -1,2 +1,2 @@
-import type { NormalizedTransaction } from '../types.js'; import type { PpiTransaction } from './types.js';
-export function mapPpiTransaction(value:PpiTransaction,accountId:string):NormalizedTransaction|undefined { const text=value.description.toUpperCase(); const type=text.includes('COMPRA')?'BUY':text.includes('VENTA')?'SELL':text.includes('DIVID')?'DIVIDEND':text.includes('INTERES')?'INTEREST':text.includes('COMISION')||text.includes('FEE')?'FEE':undefined; if(!type)return undefined;return {id:`ppi|${accountId}|${value.agreementDate}|${value.ticker??''}|${type}|${value.amount}|${value.price}`,accountId,type,symbol:value.ticker,currency:value.currency,date:new Date(value.agreementDate),quantity:String(value.quantity),unitPrice:String(value.price),description:value.description,source:'ppi'}; }
+// Kept as the PPI-facing import surface; mapping rules live in the shared pipeline.
+export { ppiToNormalized as mapPpiTransaction } from '../mapping/ppi-to-normalized.js';
