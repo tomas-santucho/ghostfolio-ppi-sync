@@ -81,8 +81,13 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   }catch(error){
     if(error instanceof SyncRunError)throw error;
     if(error instanceof GhostfolioImportError){
-      summary.imported=error.details.completed;
-      summary.httpFailed+=error.details.failed;
+      const priorValidationFailures=error.details.validationFailures??[];
+      summary.imported=error.details.confirmed??Math.max(0,error.details.completed-priorValidationFailures.length);
+      summary.validationFailed+=priorValidationFailures.length;
+      summary.failedFingerprints.push(...priorValidationFailures);
+      const validationRejection=error.details.cause instanceof HttpRequestError&&error.details.cause.details.service==='Ghostfolio'&&error.details.cause.details.status!==undefined&&error.details.cause.details.status>=400&&error.details.cause.details.status<500&&error.details.cause.details.status!==408&&error.details.cause.details.status!==429;
+      if(validationRejection)summary.validationFailed+=error.details.failed;
+      else summary.httpFailed+=error.details.failed;
       summary.unattempted+=Math.max(0,candidates.length-error.details.completed-error.details.failed);
       if(error.details.cause instanceof GhostfolioUnknownImportOutcomeError)summary.uncertain+=error.details.failed;
       summary.failedFingerprints.push(...candidates.slice(error.details.from-1,error.details.to).map(activityFingerprint));

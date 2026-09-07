@@ -97,7 +97,7 @@ export class GhostfolioHttpClient implements GhostfolioClient {
         completed+=batch.length;
       }catch(error){
         const batchNumber=Math.floor(index/batchSize)+1;
-        throw new GhostfolioImportError(`Ghostfolio import failed for batch ${batchNumber} (activities ${index+1}-${index+batch.length}, size ${batch.length}): ${error instanceof Error?error.message:'unknown error'}`,{batchNumber,from:index+1,to:index+batch.length,size:batch.length,completed,failed:batch.length,cause:error});
+        throw new GhostfolioImportError(`Ghostfolio import failed for batch ${batchNumber} (activities ${index+1}-${index+batch.length}, size ${batch.length}): ${error instanceof Error?error.message:'unknown error'}`,{batchNumber,from:index+1,to:index+batch.length,size:batch.length,completed,confirmed:completed-validationFailures.length,failed:batch.length,validationFailures:validationFailures.map(activity=>activity.comment?.split(':').at(-1)??'unknown'),cause:error});
       }
     }
     return {dryRun:options.dryRun===true,imported:activities.length,activities:imported,validationFailures};
