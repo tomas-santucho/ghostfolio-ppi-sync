@@ -147,6 +147,8 @@ bun run sync --ghostfolio-only
 bun run sync --bootstrap-holdings --dry-run
 ```
 
+`--ppi-only` and `--ppi-orders` use `SYNC_FROM_DATE` and `SYNC_TO_DATE` when configured, so diagnostics can remain within the same controlled range as a sync.
+
 When the dry-run output is correct, run the real import:
 
 ```bash
@@ -159,7 +161,7 @@ Use a dedicated Ghostfolio test account for every first validation and real impo
 
 ### Reconciliation and recovery
 
-Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, and `HTTP failed`. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
+Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, `HTTP failed`, `Unattempted`, and `Uncertain`. In a dry-run, `Imported` means accepted for validation rather than persisted. `Unattempted` counts activities after a failed batch; `Uncertain` counts activities whose write outcome could not be reconciled safely. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
 
 `GHOSTFOLIO_BATCH_SIZE` controls how many activities are sent per import request. It defaults to `100` and accepts only integers from `1` to `500`. Activities retain their source order across batches. A failure reports the batch number, its inclusive activity range, and its actual size.
 
@@ -171,7 +173,7 @@ Set `PPI_ORDER_ENRICHMENT=true` only when PPI returns historical rows from its r
 
 ## Bootstrap existing holdings
 
-The normal synchronizer does not invent historical BUY activities from current balances. If PPI history is insufficient, use `--bootstrap-holdings` with a user-provided JSON file containing the opening date, quantity, unit price, currency, and symbol. Run its dry-run first.
+The normal synchronizer does not invent historical BUY activities from current balances. If PPI history is insufficient, use `--bootstrap-holdings` with a user-provided JSON file containing the opening date, quantity, unit price, currency, and symbol. Bootstrap entries have their own deterministic `ppi-bootstrap:` marker and are checked in the configured target account before importing. Both `DRY_RUN=true` and `--dry-run` enable bootstrap validation without persistence.
 
 ## Docker
 

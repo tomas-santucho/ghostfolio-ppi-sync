@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { loadConfig, loadGhostfolioConfig, loadPpiConfig } from './config.js';
-import { bootstrapHoldings, parseBootstrapHoldings } from './bootstrap.js';
+import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseSyncRange } from './config.js';
+import { importBootstrapHoldings, parseBootstrapHoldings } from './bootstrap.js';
 import { GhostfolioHttpClient } from './ghostfolio/client.js';
 import { Logger } from './logger.js';
 import { PpiHttpClient } from './ppi/client.js';
@@ -14,6 +14,8 @@ function report(summary:SyncSummary,logger:Logger):void {
   logger.info(`Unsupported: ${summary.unsupported}`);
   logger.info(`Validation failed: ${summary.validationFailed}`);
   logger.info(`HTTP failed: ${summary.httpFailed}`);
+  logger.info(`Unattempted: ${summary.unattempted}`);
+  logger.info(`Uncertain: ${summary.uncertain}`);
   if(summary.skippedFingerprints.length>0) logger.warn(`Skipped fingerprints: ${summary.skippedFingerprints.join(', ')}`);
   if(summary.failedFingerprints.length>0) logger.error(`Failed fingerprints: ${summary.failedFingerprints.join(', ')}`);
 }
@@ -26,8 +28,9 @@ async function main():Promise<void> {
     if(!file) throw new Error('BOOTSTRAP_HOLDINGS_FILE is required with --bootstrap-holdings');
     const config=loadGhostfolioConfig(process.env);
     const holdings=parseBootstrapHoldings(JSON.parse(await readFile(file,'utf8')));
-    const result=await new GhostfolioHttpClient(config).importActivities(bootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',config.accountId),{dryRun:process.argv.includes('--dry-run')});
-    logger.info(`Bootstrap ${result.dryRun?'validated':'imported'} ${holdings.length} holdings.`);
+    const dryRun=process.argv.includes('--dry-run')||process.env.DRY_RUN==='true';
+    const result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),config.accountId,{dryRun});
+    logger.info(`Bootstrap ${dryRun?'validated':'imported'} ${result.imported} holdings; skipped ${result.duplicates} duplicates.`);
     return;
   }
   if(process.argv.includes('--ghostfolio-import-dry-run')) {
@@ -40,8 +43,9 @@ async function main():Promise<void> {
   if(process.argv.includes('--ghostfolio-only')) { const activities=await new GhostfolioHttpClient(loadGhostfolioConfig(process.env)).getActivities(); logger.info(`Ghostfolio connection successful. Found ${activities.length} activities.`); return; }
   const ppi=loadPpiConfig(process.env); const ppiClient=new PpiHttpClient(ppi);
   if(process.argv.includes('--ppi-account')) { const positions=await ppiClient.getPositions(ppi.accountId); for(const position of positions) logger.info(`${position.ticker}: ${position.quantity} ${position.currency} (price: ${position.price})`); return; }
-  if(process.argv.includes('--ppi-only')) { const transactions=await ppiClient.getTransactions({accountId:ppi.accountId}); logger.info(`PPI connection successful. Found ${transactions.length} movements.`); return; }
-  if(process.argv.includes('--ppi-orders')) { const orders=await ppiClient.getOrders({accountId:ppi.accountId}); logger.info(`PPI connection successful. Found ${orders.length} historical orders.`); return; }
+  const ppiRange=parseSyncRange(process.env.SYNC_FROM_DATE,process.env.SYNC_TO_DATE);
+  if(process.argv.includes('--ppi-only')) { const transactions=await ppiClient.getTransactions({accountId:ppi.accountId,...ppiRange}); logger.info(`PPI connection successful. Found ${transactions.length} movements.`); return; }
+  if(process.argv.includes('--ppi-orders')) { const orders=await ppiClient.getOrders({accountId:ppi.accountId,...ppiRange}); logger.info(`PPI connection successful. Found ${orders.length} historical orders.`); return; }
   const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
   const ghostfolio=new GhostfolioHttpClient(config.ghostfolio);
   const summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,config.accountMap,{from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,warn:message=>logger.warn(message)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,warn:message=>logger.warn(message)});

@@ -35,7 +35,7 @@ Every sync and dry-run prints the same categories:
 - `Validation failed`: source or Ghostfolio validation failures.
 - `HTTP failed`: failed reads or import batches.
 
-Skipped and failed entries are reported only through deterministic SHA-256 fingerprints, never by exposing raw PPI movements. Each skipped warning includes a movement type and a concrete reason. A failed Ghostfolio batch reports its activity range and the completed count, so rerunning safely recovers the uncompleted portion.
+Skipped and failed entries are reported only through deterministic SHA-256 fingerprints, never by exposing raw PPI movements. Each skipped warning includes a movement type and a concrete reason. A failed Ghostfolio batch reports its activity range and the completed count. Activities after that batch are reported as `Unattempted`; activities whose write status cannot be reconciled are reported as `Uncertain` and are never resent automatically.
 
 ## Ghostfolio batch size
 
