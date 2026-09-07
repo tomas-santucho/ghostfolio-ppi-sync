@@ -29,7 +29,7 @@ test('retains independent BUY/SELL economics when a separate commission has no r
   expect(result).toMatchObject({imported:2,unsupported:1});
   expect(imported).toMatchObject([{type:'BUY',quantity:2,unitPrice:10,fee:0},{type:'SELL',quantity:1,unitPrice:12,fee:0}]);
   expect(warnings).toHaveLength(1);
-  expect(warnings[0]).toContain('Unmatched PPI commission');
+  expect(warnings[0]).toContain('no stable trade reference');
 });
 
 test('repeated dividend and tax synchronization persists each movement only once', async () => {
@@ -98,5 +98,5 @@ test('reports unreferenced commission without inventing a trade association', as
   }, {ppiAccountId:'a',ghostfolioAccountId:'b',dryRun:true,warn:message=>warnings.push(message)});
   expect(result.unsupported).toBe(1);
   expect(writes).toBe(0);
-  expect(warnings[0]).toContain('Unmatched PPI commission');
+  expect(warnings[0]).toContain('no stable trade reference');
 });

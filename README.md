@@ -30,7 +30,7 @@ PPI and Ghostfolio data is validated with Zod. Amounts, quantities, prices, and 
 
 Unsupported or ambiguous movements are logged as warnings and skipped.
 
-Read-only PPI requests use timeouts and retry only transient `408` and `5xx` responses. A `429` rate limit is never retried and stops the run immediately.
+Read-only PPI requests use timeouts and bounded retries for connection failures, transient `408`, and `5xx` responses. A PPI `429` rate limit is never retried: it stops the run immediately, marks history as incomplete, and returns a nonzero exit code. See [the PPI operating guide](ppi.md) before running diagnostics or a production sync.
 
 ## Requirements
 
@@ -152,6 +152,10 @@ bun run sync
 ```
 
 The process is idempotent: re-running the same source movements does not create duplicates.
+
+### Reconciliation and recovery
+
+Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, and `HTTP failed`. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
 
 `--ppi-orders` is a diagnostic read-only command: it reports only the count of historical PPI orders and never prints order IDs or trade details.
 

@@ -4,7 +4,19 @@ import { bootstrapHoldings, parseBootstrapHoldings } from './bootstrap.js';
 import { GhostfolioHttpClient } from './ghostfolio/client.js';
 import { Logger } from './logger.js';
 import { PpiHttpClient } from './ppi/client.js';
-import { runSync, runSyncForAccounts } from './sync.js';
+import { runSync, runSyncForAccounts, SyncRunError, type SyncSummary } from './sync.js';
+
+function report(summary:SyncSummary,logger:Logger):void {
+  logger.info(`Fetched: ${summary.fetched}`);
+  logger.info(`Mapped: ${summary.mapped}`);
+  logger.info(`Imported: ${summary.imported}`);
+  logger.info(`Duplicates: ${summary.duplicates}`);
+  logger.info(`Unsupported: ${summary.unsupported}`);
+  logger.info(`Validation failed: ${summary.validationFailed}`);
+  logger.info(`HTTP failed: ${summary.httpFailed}`);
+  if(summary.skippedFingerprints.length>0) logger.warn(`Skipped fingerprints: ${summary.skippedFingerprints.join(', ')}`);
+  if(summary.failedFingerprints.length>0) logger.error(`Failed fingerprints: ${summary.failedFingerprints.join(', ')}`);
+}
 
 async function main():Promise<void> {
   const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');
@@ -33,6 +45,6 @@ async function main():Promise<void> {
   const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
   const ghostfolio=new GhostfolioHttpClient(config.ghostfolio);
   const summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,config.accountMap,{from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,warn:message=>logger.warn(message)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,warn:message=>logger.warn(message)});
-  logger.info(`Found ${summary.fetched} PPI transactions.`); logger.info(`New activities: ${summary.imported}`); logger.info(`Skipped duplicates: ${summary.duplicates}`); logger.info(`Unsupported: ${summary.unsupported}`); logger.info(config.dryRun?'Dry-run completed.':'Sync completed successfully.');
+  report(summary,logger); logger.info(config.dryRun?'Dry-run completed.':'Sync completed successfully.');
 }
-void main().catch(error=>{console.error(error instanceof Error?error.message:'Fatal error');process.exitCode=1;});
+void main().catch(error=>{if(error instanceof SyncRunError){const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');logger.error(error.message);report(error.summary,logger);}else console.error(error instanceof Error?error.message:'Fatal error');process.exitCode=1;});
