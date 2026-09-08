@@ -1,0 +1,104 @@
+{
+  "cases": [
+    {
+      "id": "buy-us-equity-decimal",
+      "transaction": {"agreementDate":"2024-02-01T03:00:00Z","currency":"USD","amount":"-15.24156789","price":"0.00000001","description":"Compra AAPL","ticker":"AAPL","quantity":"1524156789","balance":"100.00000001"},
+      "instrument": {"ticker":"AAPL","description":"Apple Inc.","currency":"USD","type":"ACCIONES","market":"NASDAQ","isin":"US0378331005"},
+      "expectedDate": "2024-02-01T03:00:00.000Z",
+      "normalized": {"type":"BUY","symbol":"AAPL","sourceSymbol":"AAPL","currency":"USD","quantity":"1524156789","unitPrice":"0.00000001","fee":"0","market":"NASDAQ","isin":"US0378331005"},
+      "payload": {"type":"BUY","currency":"USD","symbol":"AAPL","dataSource":"YAHOO","quantity":1524156789,"unitPrice":0.00000001,"fee":0},
+      "settlement": {"symbol":"GF_PPI_CASH_USD_GLOBAL","type":"SELL","currency":"USD","quantity":15.24156789,"unitPrice":1,"dataSource":"MANUAL"}
+    },
+    {
+      "id": "sell-bond-cable-species",
+      "transaction": {"agreementDate":"2024-02-02T03:00:00Z","currency":"Dolar Cable","amount":"4.8872","price":"0.6112","description":"VENTA AL30","ticker":"AL30","quantity":"-8","balance":"104.8872"},
+      "instrument": {"ticker":"AL30C","description":"AL30 cable","currency":"Dolar Cable","type":"BONOS","market":"BYMA","isin":"ARARGE3209S6"},
+      "expectedDate": "2024-02-02T03:00:00.000Z",
+      "normalized": {"type":"SELL","symbol":"GF_PPI_AL30C","sourceSymbol":"AL30","currency":"USD","quantity":"8","unitPrice":"0.6112","fee":"0","market":"BYMA","dataSource":"MANUAL","isin":"ARARGE3209S6"},
+      "payload": {"type":"SELL","currency":"USD","symbol":"GF_PPI_AL30C","dataSource":"MANUAL","quantity":8,"unitPrice":0.6112,"fee":0},
+      "settlement": {"symbol":"GF_PPI_CASH_USD_CCL","type":"BUY","currency":"USD","quantity":4.8872,"unitPrice":1,"dataSource":"MANUAL"}
+    },
+    {
+      "id": "dividend-null-ticker",
+      "transaction": {"agreementDate":"2024-02-03T03:00:00Z","currency":"Dolar Saxo","amount":"1.08","price":0,"description":"Movimiento Manual / Deposit for Dividend AAPL","ticker":"Ticker not found","quantity":0,"balance":"101.08"},
+      "expectedDate": "2024-02-03T03:00:00.000Z",
+      "normalized": {"type":"DIVIDEND","symbol":"AAPL","currency":"USD","quantity":"1","unitPrice":"1.08","fee":"0"},
+      "payload": {"type":"DIVIDEND","currency":"USD","symbol":"AAPL","quantity":1,"unitPrice":1.08,"fee":0}
+    },
+    {
+      "id": "interest-resolved-symbol",
+      "transaction": {"agreementDate":"2024-02-04T03:00:00Z","currency":"Pesos","amount":"2.2","price":0,"description":"Interes AAPL","ticker":"Ticker not found","quantity":0,"balance":"102.2"},
+      "expectedDate": "2024-02-04T03:00:00.000Z",
+      "normalized": {"type":"INTEREST","symbol":"AAPL","currency":"ARS","quantity":"1","unitPrice":"2.2","fee":"0"},
+      "payload": {"type":"INTEREST","currency":"ARS","symbol":"AAPL","quantity":1,"unitPrice":2.2,"fee":0}
+    },
+    {
+      "id": "dividend-withholding-fee",
+      "transaction": {"agreementDate":"2024-02-05T03:00:00Z","currency":"Dolar Saxo","amount":"-0.32","price":0,"description":"Movimiento Manual / Tax for Dividend AAPL","ticker":"Ticker not found","quantity":0,"balance":"100.76"},
+      "expectedDate": "2024-02-05T03:00:00.000Z",
+      "normalized": {"type":"FEE","symbol":"AAPL","currency":"USD","quantity":"1","unitPrice":"0.32","fee":"0"},
+      "payload": {"type":"FEE","currency":"USD","symbol":"AAPL","quantity":1,"unitPrice":0.32,"fee":0}
+    },
+    {
+      "id": "deposit-ars",
+      "transaction": {"agreementDate":"2024-02-06T03:00:00Z","currency":"Pesos","amount":"100.25","price":0,"description":"Ingreso de Fondos","ticker":"Ticker not found","quantity":0,"balance":"100.25"},
+      "cashAsset": "GF_PPI_CASH_ARS",
+      "expectedDate": "2024-02-06T03:00:00.000Z",
+      "normalized": {"type":"DEPOSIT","currency":"ARS","quantity":"100.25","unitPrice":"1","fee":"0"},
+      "payload": {"type":"BUY","currency":"ARS","symbol":"GF_PPI_CASH_ARS","dataSource":"MANUAL","quantity":100.25,"unitPrice":1,"fee":0}
+    },
+    {
+      "id": "deposit-global-usd",
+      "transaction": {"agreementDate":"2024-02-06T03:00:00Z","currency":"Dolar Saxo","amount":"12.5","price":0,"description":"Ingreso de Fondos","ticker":"Ticker not found","quantity":0,"balance":"12.5"},
+      "cashAsset": "GF_PPI_CASH_USD_GLOBAL",
+      "expectedDate": "2024-02-06T03:00:00.000Z",
+      "normalized": {"type":"DEPOSIT","currency":"USD","quantity":"12.5","unitPrice":"1","fee":"0"},
+      "payload": {"type":"BUY","currency":"USD","symbol":"GF_PPI_CASH_USD_GLOBAL","dataSource":"MANUAL","quantity":12.5,"unitPrice":1,"fee":0}
+    },
+    {
+      "id": "deposit-mep-usd",
+      "transaction": {"agreementDate":"2024-02-06T03:00:00Z","currency":"Dolar MEP - COM 7340","amount":"23.45","price":0,"description":"Ingreso de Fondos","ticker":"Ticker not found","quantity":0,"balance":"23.45"},
+      "cashAsset": "GF_PPI_CASH_USD_MEP",
+      "expectedDate": "2024-02-06T03:00:00.000Z",
+      "normalized": {"type":"DEPOSIT","currency":"USD","quantity":"23.45","unitPrice":"1","fee":"0"},
+      "payload": {"type":"BUY","currency":"USD","symbol":"GF_PPI_CASH_USD_MEP","dataSource":"MANUAL","quantity":23.45,"unitPrice":1,"fee":0}
+    },
+    {
+      "id": "withdrawal-ccl-usd",
+      "transaction": {"agreementDate":"2024-02-06T03:00:00Z","currency":"Dolar Cable","amount":"-34.56","price":0,"description":"Retiro de Fondos","ticker":"Ticker not found","quantity":0,"balance":"65.44"},
+      "cashAsset": "GF_PPI_CASH_USD_CCL",
+      "expectedDate": "2024-02-06T03:00:00.000Z",
+      "normalized": {"type":"WITHDRAWAL","currency":"USD","quantity":"34.56","unitPrice":"1","fee":"0"},
+      "payload": {"type":"SELL","currency":"USD","symbol":"GF_PPI_CASH_USD_CCL","dataSource":"MANUAL","quantity":34.56,"unitPrice":1,"fee":0}
+    },
+    {
+      "id": "income-reversal-is-omitted",
+      "transaction": {"agreementDate":"2024-02-07T03:00:00Z","currency":"USD","amount":"-1","price":0,"description":"Dividend AAPL","ticker":"AAPL","quantity":0,"balance":"64.44"},
+      "omitReason": "income reversal"
+    },
+    {
+      "id": "invalid-agreement-date-is-omitted",
+      "transaction": {"agreementDate":"not-a-date","currency":"USD","amount":"10","price":"10","description":"Compra AAPL","ticker":"AAPL","quantity":"1","balance":"74.44"},
+      "omitReason": "invalid agreement date"
+    },
+    {
+      "id": "complex-fund-is-omitted",
+      "transaction": {"agreementDate":"2024-02-07T03:00:00Z","currency":"Pesos","amount":"100","price":"10","description":"Compra FCI Fondo Comun","ticker":"Ticker not found","quantity":"10","balance":"164.44"},
+      "omitReason": "complex instrument"
+    },
+    {
+      "id": "ambiguous-instrument-identity-is-omitted",
+      "transaction": {"agreementDate":"2024-02-07T03:00:00Z","currency":"USD","amount":"-10","price":"10","description":"Compra SAME","ticker":"SAME","quantity":"1","balance":"154.44"},
+      "ambiguousInstruments": [
+        {"ticker":"SAME","description":"Synthetic NASDAQ identity","currency":"USD","type":"ACCIONES","market":"NASDAQ","isin":"US0000000001"},
+        {"ticker":"SAME","description":"Synthetic NYSE identity","currency":"USD","type":"ACCIONES","market":"NYSE","isin":"US0000000002"}
+      ],
+      "omitReason": "ambiguous instrument identity"
+    },
+    {
+      "id": "unreferenced-commission-is-omitted",
+      "transaction": {"agreementDate":"2024-02-07T03:00:00Z","currency":"Dolar Saxo","amount":"-1.25","price":0,"description":"Comisiones Opciones SAXO","ticker":"Ticker not found","quantity":0,"balance":"63.19"},
+      "skipReason": "no stable trade reference"
+    }
+  ]
+}

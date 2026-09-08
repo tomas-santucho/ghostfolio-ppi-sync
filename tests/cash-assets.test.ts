@@ -55,16 +55,16 @@ test('imports funding as manual cash BUY/SELL activities and remains idempotent'
       return {dryRun:false, imported:activities.length, activities:[]};
     }
   };
-  const options = {ppiAccountId:'ppi', ghostfolioAccountId:'ghost', dryRun:false, cashAssets:assets};
+  const options = {ppiAccountId:'ppi', ghostfolioAccountId:'ghost', dryRun:false, cashAssets:assets, cashActivityImport:true};
   const first = await runSync({getTransactions:async()=>transactions}, ghostfolio, options);
   const second = await runSync({getTransactions:async()=>transactions}, ghostfolio, options);
   expect(first).toMatchObject({fetched:4, imported:4, duplicates:0, unsupported:0});
   expect(second).toMatchObject({fetched:4, imported:0, duplicates:4, unsupported:0});
   expect(imported).toMatchObject([
-    {type:'BUY', symbol:'GF_PPI_CASH_ARS', currency:'ARS', quantity:1, unitPrice:1000, dataSource:'MANUAL'},
-    {type:'BUY', symbol:'GF_PPI_CASH_USD', currency:'USD', quantity:1, unitPrice:10, dataSource:'MANUAL'},
-    {type:'BUY', symbol:'GF_PPI_CASH_USD_MEP', currency:'USD', quantity:1, unitPrice:20, dataSource:'MANUAL'},
-    {type:'SELL', symbol:'GF_PPI_CASH_USD_CCL', currency:'USD', quantity:1, unitPrice:30, dataSource:'MANUAL'}
+    {type:'BUY', symbol:'GF_PPI_CASH_ARS', currency:'ARS', quantity:1000, unitPrice:1, dataSource:'MANUAL'},
+    {type:'BUY', symbol:'GF_PPI_CASH_USD', currency:'USD', quantity:10, unitPrice:1, dataSource:'MANUAL'},
+    {type:'BUY', symbol:'GF_PPI_CASH_USD_MEP', currency:'USD', quantity:20, unitPrice:1, dataSource:'MANUAL'},
+    {type:'SELL', symbol:'GF_PPI_CASH_USD_CCL', currency:'USD', quantity:30, unitPrice:1, dataSource:'MANUAL'}
   ]);
 });
 
@@ -77,7 +77,7 @@ test('imports same-day cash deposits that differ only by the PPI running balance
   const result = await runSync({getTransactions:async()=>transactions}, {
     getActivities:async()=>[],
     importActivities:async(batch:GhostfolioImportActivity[])=>{imported.push(...batch);return {dryRun:true,imported:batch.length,activities:[]};}
-  }, {ppiAccountId:'ppi',ghostfolioAccountId:'ghost',dryRun:true,cashAssets:assets});
+  }, {ppiAccountId:'ppi',ghostfolioAccountId:'ghost',dryRun:true,cashAssets:assets,cashActivityImport:true});
   expect(result).toMatchObject({fetched:2,imported:2,duplicates:0});
   expect(new Set(imported.map(activity=>activity.comment)).size).toBe(2);
 });
@@ -87,7 +87,7 @@ test('does not enable cash imports without an explicit matching asset', async ()
   const result = await runSync({getTransactions:async()=>[funding('Dolar Cable', 'Ingreso de Fondos', 10)]}, {
     getActivities:async()=>[],
     importActivities:async()=>({dryRun:true, imported:0, activities:[]})
-  }, {ppiAccountId:'ppi',ghostfolioAccountId:'ghost',dryRun:true,cashAssets:{USD_MEP:'GF_PPI_CASH_USD_MEP'},warn:message=>warnings.push(message)});
+  }, {ppiAccountId:'ppi',ghostfolioAccountId:'ghost',dryRun:true,cashAssets:{USD_MEP:'GF_PPI_CASH_USD_MEP'},cashActivityImport:true,warn:message=>warnings.push(message)});
   expect(result).toMatchObject({imported:0, unsupported:1});
   expect(warnings[0]).toContain('manual cash asset');
 });

@@ -74,9 +74,24 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
+
+### Identity and scoped overrides
+
+New activities use the versioned comment identity `ppi-sync:ppi:v2:<source-account>:<hash>`. Its canonical fields are the source account, PPI external ID when present, normalized activity type and UTC date, original source symbol, quantity, unit price, fee, ISO currency, and source balance. The mapped Ghostfolio symbol, provider, market, and ISIN are deliberately excluded so an override change does not reimport historical source activity.
+
+The synchronizer recognizes legacy unversioned comments from before and after the v0.3 balance discriminator. It also recognizes compatible identities that lack an order ID or balance. A legacy candidate must match exactly one existing activity in the configured target account; an ambiguous legacy match is reported as a validation failure instead of suppressing a potentially unrelated movement. Existing activities are never deleted or rewritten during an upgrade. Rerun the same bounded range in dry-run after upgrading, investigate any ambiguity, and then import only after the report is clean.
+
+`PPI_SYMBOL_OVERRIDES` accepts global rules and optional `accountId`, `currency`, `market`, and `isin` scopes. The most specific matching rule wins; equally specific, overlapping rules are rejected at configuration load. `dataSource` accepts only `YAHOO` or `MANUAL`; a `MANUAL` override must point to a user-created Ghostfolio asset identifier (a UUID or `GF_` symbol).
+
+```json
+[
+  {"symbol":"AAPL","mappedSymbol":"AAPL","dataSource":"YAHOO"},
+  {"symbol":"AL30","mappedSymbol":"GF_PPI_AL30","accountId":"source-account","currency":"ARS","market":"BYMA","isin":"ARARGE3209S6","dataSource":"MANUAL"}
+]
+```
 
 ## BYMA bonds and manual assets
 
@@ -114,18 +129,34 @@ BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets f
 
 Deposits and withdrawals are opt-in. Before enabling them, create four `MANUAL` assets in Ghostfolio and use their symbols below. PPI has distinct USD custody/settlement buckets; Ghostfolio still uses ISO `USD`, so the asset identity — rather than the currency code — keeps them separate.
 
+### Create the Ghostfolio cash profiles
+
+In the target Ghostfolio account, select **Add asset profile** → **Add manually**. For every profile, select the stated currency and choose **Cash** if an asset-class field is shown. Do not create an opening BUY activity. When Ghostfolio presents the `GF_` symbol prefix, enter the suffix shown below; the resulting full symbol must match the configuration exactly.
+
+| Display name | Enter after `GF_` | Full symbol | Currency | PPI bucket |
+| --- | --- | --- | --- | --- |
+| PPI Cash ARS | `PPI_CASH_ARS` | `GF_PPI_CASH_ARS` | ARS | ARS |
+| PPI Cash USD Global | `PPI_CASH_USD_GLOBAL` | `GF_PPI_CASH_USD_GLOBAL` | USD | global USD / `Dolar Saxo` |
+| PPI Cash USD MEP | `PPI_CASH_USD_MEP` | `GF_PPI_CASH_USD_MEP` | USD | MEP / billete |
+| PPI Cash USD CCL | `PPI_CASH_USD_CCL` | `GF_PPI_CASH_USD_CCL` | USD | CCL / cable / divisa |
+
+Keep all four assets separate. A Ghostfolio dry-run validated these four `GF_` MANUAL profiles against the configured test account without persistence.
+
+For the sanitized live-evidence record and the remaining reconciliation work, read `integration-evidence-v0.5.0.md` and `v0.5.0_final_handoff.md`.
+
 ```dotenv
-PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
+PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD_GLOBAL","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
+PPI_CASH_ACTIVITY_IMPORT=false
 ```
 
 | PPI label family | Ghostfolio asset | ISO currency |
 | --- | --- | --- |
 | Pesos | `GF_PPI_CASH_ARS` | `ARS` |
-| `Dolar Saxo` / global USD | `GF_PPI_CASH_USD` | `USD` |
+| `Dolar Saxo` / global USD | `GF_PPI_CASH_USD_GLOBAL` | `USD` |
 | `MEP` / `billete` | `GF_PPI_CASH_USD_MEP` | `USD` |
 | `CCL` / `cable` / `divisa` | `GF_PPI_CASH_USD_CCL` | `USD` |
 
-With this configuration, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, transfers, and cash assets omitted from the configuration are warned and skipped.
+Only with `PPI_CASH_ACTIVITY_IMPORT=true`, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. A supported investment BUY also creates a matching cash SELL, and a supported investment SELL creates a matching cash BUY, using PPI's signed settlement amount rather than recalculating it from quantity and price. This prevents cash from remaining in the portfolio after it funded a trade. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, missing cash assets, and broker settlement amounts with an unexpected sign are reported as skipped cash settlements; the investment activity remains eligible for import. Keep cash imports disabled until a dry-run is clean, then make one controlled test-account import and a duplicate-free rerun.
 
 Do not model MEP/CCL conversions automatically yet. They require a verified relationship between the source and destination PPI movements; the synchronizer will not infer one from adjacent cash rows.
 
@@ -156,6 +187,8 @@ bun run sync
 ```
 
 The process is idempotent: re-running the same source movements does not create duplicates.
+
+Multiple PPI source accounts always import into the single configured `GHOSTFOLIO_ACCOUNT_ID`. Configure them once in a nonempty, comma-separated `PPI_ACCOUNT_IDS` list; duplicate source IDs fail configuration before PPI or Ghostfolio is contacted. Their versioned fingerprints retain the source account, so identical source IDs or tickers remain isolated in the shared target account. Multi-account runs emit an opaque numbered summary for each source, followed by the aggregate summary; account IDs are never written to logs. An account-local Ghostfolio validation error is retained in the nonzero final report but does not suppress later sources; PPI/transport/uncertain-write failures still stop the run. Do not configure per-account Ghostfolio mappings.
 
 Use a dedicated Ghostfolio test account for every first validation and real import. The [integration and safe-operation playbook](integration-playbook.md) defines the required diagnostic, dry-run, import, rerun, recovery, and data-handling procedure.
 
@@ -199,9 +232,11 @@ bun run lint
 bun run secrets
 ```
 
+The offline contract corpus in `tests/fixtures/ppi-contract-variants.json` defines the expected normalized transaction and Ghostfolio import payload for each supported activity type. It also covers cash-bucket selection, trade-settlement legs, nullable tickers, decimal precision, and explicitly skipped reversals, ambiguous identities, complex instruments, and unreferenced commissions. It uses only synthetic identifiers and runs without PPI credentials.
+
 ## Limitations
 
-- DEPOSIT and WITHDRAWAL require the explicit `PPI_CASH_ASSETS` configuration and pre-created Ghostfolio MANUAL assets. They are otherwise skipped.
+- DEPOSIT, WITHDRAWAL, and trade-settlement cash legs require both explicit `PPI_CASH_ASSETS` mappings and `PPI_CASH_ACTIVITY_IMPORT=true`. It remains disabled by default: enable it only after independently reconciling the complete PPI cash history and the ending balances for every cash bucket. A configured asset map does not establish that coverage.
 - FCI, cauciones, ONs, amortizing bonds, exchanges, and splits are skipped pending explicit mapping rules and fixtures.
 - The observed PPI exchange and split rows have no instrument execution data; they are not converted into synthetic BUY or SELL activities.
 - A standalone commission is reported and skipped unless PPI provides a stable association with its originating trade.

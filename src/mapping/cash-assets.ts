@@ -5,7 +5,9 @@ export const cashAssetBuckets = ['ARS', 'USD_GLOBAL', 'USD_MEP', 'USD_CCL'] as c
 export type CashAssetBucket = typeof cashAssetBuckets[number];
 export type CashAssetMap = Partial<Record<CashAssetBucket, string>>;
 
-const manualAssetSymbol = z.string().trim().regex(/^GF_[A-Z0-9_]+$/i, 'Ghostfolio MANUAL asset symbols must start with GF_');
+// UUID-backed MANUAL assets are accepted by both older and current Ghostfolio
+// releases. Retain GF_ for configurations from earlier synchronizer versions.
+const manualAssetSymbol = z.string().trim().refine(value => z.string().uuid().safeParse(value).success || /^GF_[A-Z0-9_]+$/i.test(value), 'Ghostfolio MANUAL asset symbols must be UUIDs or start with GF_');
 
 const cashAssetMapSchema = z.object({
   ARS: manualAssetSymbol.optional(),
@@ -42,5 +44,5 @@ export function cashAssetCurrency(bucket: CashAssetBucket): 'ARS' | 'USD' {
 export function resolveCashAsset(currency: string, assets: CashAssetMap): { bucket: CashAssetBucket; symbol: string; currency: 'ARS' | 'USD' } | undefined {
   const bucket = cashAssetBucket(currency);
   const symbol = bucket ? assets[bucket] : undefined;
-  return bucket && symbol ? {bucket, symbol: symbol.trim().toUpperCase(), currency: cashAssetCurrency(bucket)} : undefined;
+  return bucket && symbol ? {bucket, symbol: symbol.trim(), currency: cashAssetCurrency(bucket)} : undefined;
 }
