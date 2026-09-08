@@ -78,6 +78,21 @@ Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
+### Identity and scoped overrides
+
+New activities use the versioned comment identity `ppi-sync:ppi:v2:<source-account>:<hash>`. Its canonical fields are the source account, PPI external ID when present, normalized activity type and UTC date, original source symbol, quantity, unit price, fee, ISO currency, and source balance. The mapped Ghostfolio symbol, provider, market, and ISIN are deliberately excluded so an override change does not reimport historical source activity.
+
+The synchronizer recognizes legacy unversioned comments from before and after the v0.3 balance discriminator. It also recognizes compatible identities that lack an order ID or balance. A legacy candidate must match exactly one existing activity in the configured target account; an ambiguous legacy match is reported as a validation failure instead of suppressing a potentially unrelated movement. Existing activities are never deleted or rewritten during an upgrade. Rerun the same bounded range in dry-run after upgrading, investigate any ambiguity, and then import only after the report is clean.
+
+`PPI_SYMBOL_OVERRIDES` accepts global rules and optional `accountId`, `currency`, `market`, and `isin` scopes. The most specific matching rule wins; equally specific, overlapping rules are rejected at configuration load. `dataSource` accepts only `YAHOO` or `MANUAL`; a `MANUAL` override must point to a `GF_` Ghostfolio asset.
+
+```json
+[
+  {"symbol":"AAPL","mappedSymbol":"AAPL","dataSource":"YAHOO"},
+  {"symbol":"AL30","mappedSymbol":"GF_PPI_AL30","accountId":"source-account","currency":"ARS","market":"BYMA","isin":"ARARGE3209S6","dataSource":"MANUAL"}
+]
+```
+
 ## BYMA bonds and manual assets
 
 BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets first, then map PPI tickers explicitly with `PPI_SYMBOL_OVERRIDES`.
@@ -156,6 +171,8 @@ bun run sync
 ```
 
 The process is idempotent: re-running the same source movements does not create duplicates.
+
+Multiple PPI source accounts may intentionally map to one Ghostfolio target account. Their versioned fingerprints retain the source account, so identical source IDs or tickers remain isolated. Every source account must have a non-empty target mapping before the run starts; an incomplete map fails before any Ghostfolio write.
 
 Use a dedicated Ghostfolio test account for every first validation and real import. The [integration and safe-operation playbook](integration-playbook.md) defines the required diagnostic, dry-run, import, rerun, recovery, and data-handling procedure.
 

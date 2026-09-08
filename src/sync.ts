@@ -1,5 +1,5 @@
 import { GhostfolioImportError, GhostfolioUnknownImportOutcomeError, HttpRequestError, PpiRateLimitError } from './errors.js';
-import { sourceMovementFingerprint, transactionId } from './mapping/fingerprint.js';
+import { compatibleTransactionIds, sourceMovementFingerprint, transactionId } from './mapping/fingerprint.js';
 import { normalizedToGhostfolio } from './mapping/normalized-to-ghostfolio.js';
 import { ppiToNormalized } from './mapping/ppi-to-normalized.js';
 import { resolveSymbolOverride, type SymbolOverride } from './mapping/symbol-overrides.js';
@@ -35,7 +35,7 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   summary.fetched=transactions.length;
   let existing:Awaited<ReturnType<GhostfolioClient['getActivities']>>;
   try{existing=await ghostfolio.getActivities();}catch(error){summary.httpFailed++;throw new SyncRunError('Ghostfolio activities could not be read',summary,{cause:error});}
-  const existingIds=new Set(existing.map(activity=>typeof activity.comment==='string'?activity.comment.replace(/^ppi-sync:/,''):''));
+  const existingIds=new Set(existing.filter(activity=>activity.accountId===options.ghostfolioAccountId).map(activity=>typeof activity.comment==='string'?activity.comment.replace(/^ppi-sync:/,''):''));
   const candidates:GhostfolioImportActivity[]=[];
   const consumedLegacyIds=new Set<string>();
   for(const transaction of transactions){
@@ -52,16 +52,20 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
         base={...base,symbol:cashAsset.symbol,currency:cashAsset.currency,dataSource:'MANUAL',market:'PPI_CASH'};
       }
       if((!transaction.ticker||transaction.ticker==='Ticker not found')&&!instrument&&base.market==='BYMA'){skip(summary,transaction,base.type,`inferred BYMA symbol ${base.symbol??'unknown'} requires an explicit override`,warn);continue;}
-      const override=resolveSymbolOverride(transaction.ticker,options.symbolOverrides??[])??resolveSymbolOverride(base.symbol,options.symbolOverrides??[]);
+      const override=resolveSymbolOverride({symbol:base.sourceSymbol??transaction.ticker??base.symbol,accountId:options.ppiAccountId,currency:base.currency,isin:instrument?.isin??base.isin,market:instrument?.market??base.market},options.symbolOverrides??[]);
       if((base.type==='BUY'||base.type==='SELL'||base.type==='INTEREST')&&!instrument&&!override){skip(summary,transaction,base.type,`${base.symbol??'unknown'} requires an instrument resolution or explicit override`,warn);continue;}
       if(instrument?.market==='BYMA'&&instrument.type==='BONOS'&&!override){skip(summary,transaction,base.type,`bond ${instrument.ticker} requires an explicit manual override`,warn);continue;}
       if(!ghostfolioActivityTypes.has(base.type)){skip(summary,transaction,base.type,'no Ghostfolio import representation',warn);continue;}
       const normalized=override?{...base,symbol:override.mappedSymbol.toUpperCase(),isin:override.isin??base.isin,market:override.market??base.market,dataSource:override.dataSource??base.dataSource}:base;
       summary.mapped++;
       const id=transactionId(normalized);
-      const legacyIds=[normalized.externalId?transactionId({...normalized,externalId:undefined}):undefined,normalized.sourceBalance!==undefined?transactionId({...normalized,sourceBalance:undefined}):undefined].filter((value):value is string=>Boolean(value));
-      const legacyId=legacyIds.find(value=>existingIds.has(value)&&!consumedLegacyIds.has(value));
-      if(existingIds.has(id)||legacyId){if(legacyId)consumedLegacyIds.add(legacyId);summary.duplicates++;continue;}
+      if(existingIds.has(id)){summary.duplicates++;continue;}
+      const compatibleIds=new Set([...compatibleTransactionIds(normalized),...compatibleTransactionIds(base)]);
+      compatibleIds.delete(id);
+      const matchingIds=[...compatibleIds].filter(value=>existingIds.has(value));
+      if(matchingIds.length>1)throw new Error(`Ambiguous legacy identity for source movement ${sourceFingerprint}`);
+      const legacyId=matchingIds[0];
+      if(legacyId){if(consumedLegacyIds.has(legacyId))throw new Error(`Ambiguous legacy identity for source movement ${sourceFingerprint}`);consumedLegacyIds.add(legacyId);summary.duplicates++;continue;}
       existingIds.add(id);
       candidates.push(normalizedToGhostfolio({...normalized,id},options.ghostfolioAccountId));
     }catch(error){
@@ -104,9 +108,9 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
 
 export async function runSyncForAccounts(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,accountIds:string[],accountMap:Record<string,string>,options:Omit<Parameters<typeof runSync>[2],'ppiAccountId'|'ghostfolioAccountId'>):Promise<SyncSummary>{
   const total=emptySummary();
+  for(const ppiAccountId of accountIds)if(!accountMap[ppiAccountId])throw new Error(`No Ghostfolio account mapping for PPI account ${ppiAccountId}`);
   for(const ppiAccountId of accountIds){
     const ghostfolioAccountId=accountMap[ppiAccountId];
-    if(!ghostfolioAccountId)throw new Error(`No Ghostfolio account mapping for PPI account ${ppiAccountId}`);
     try{addSummary(total,await runSync(ppi,ghostfolio,{...options,ppiAccountId,ghostfolioAccountId}));}
     catch(error){if(error instanceof SyncRunError){addSummary(total,error.summary);throw new SyncRunError(error.message,total,{cause:error});}throw error;}
   }
