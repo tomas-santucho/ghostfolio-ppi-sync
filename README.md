@@ -74,7 +74,7 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, and `BOOTSTRAP_HOLDINGS_FILE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
@@ -147,6 +147,8 @@ bun run sync --ghostfolio-only
 bun run sync --bootstrap-holdings --dry-run
 ```
 
+`--ppi-only` and `--ppi-orders` use `SYNC_FROM_DATE` and `SYNC_TO_DATE` when configured, so diagnostics can remain within the same controlled range as a sync.
+
 When the dry-run output is correct, run the real import:
 
 ```bash
@@ -159,7 +161,9 @@ Use a dedicated Ghostfolio test account for every first validation and real impo
 
 ### Reconciliation and recovery
 
-Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, and `HTTP failed`. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
+Every normal run and dry-run prints `Fetched`, `Mapped`, `Imported`, `Duplicates`, `Unsupported`, `Validation failed`, `HTTP failed`, `Unattempted`, and `Uncertain`. Counts refer to activities except `Fetched`, which refers to source movements. `Mapped` includes later duplicates; `Imported` is confirmed accepted activities (or validated activities in dry-run); and `Duplicates`, `Unsupported`, `Validation failed`, `HTTP failed`, `Unattempted`, and `Uncertain` explain why mapped work was not confirmed imported. `Validation failed` includes local mapping failures and non-transient Ghostfolio `4xx` rejections. `HTTP failed` is reserved for failed reads, transport failures, and transient import failures. `Unattempted` counts activities after a failed batch; `Uncertain` counts activities whose write outcome could not be reconciled safely. Skipped and failed records are identified only by deterministic fingerprints, and every skip includes a movement type and concrete reason. If a Ghostfolio batch fails, the output identifies the failed range and the completed count; rerun the same bounded range after resolving the error. Existing fingerprints prevent duplicate imports.
+
+Ghostfolio comments intentionally contain only `ppi-sync:` or `ppi-bootstrap:` plus an opaque deterministic fingerprint; they do not contain a literal PPI or Ghostfolio account identifier. For support, provide the command, version, UTC time range, summary counts, opaque fingerprints, HTTP status, and sanitized error type. Do not include `.env` values, authorization headers, account numbers, descriptions, or raw PPI/Ghostfolio payloads. `bun run secrets` scans tracked files for likely credential assignments and also verifies diagnostic redaction using synthetic fixtures.
 
 `GHOSTFOLIO_BATCH_SIZE` controls how many activities are sent per import request. It defaults to `100` and accepts only integers from `1` to `500`. Activities retain their source order across batches. A failure reports the batch number, its inclusive activity range, and its actual size.
 
@@ -171,7 +175,9 @@ Set `PPI_ORDER_ENRICHMENT=true` only when PPI returns historical rows from its r
 
 ## Bootstrap existing holdings
 
-The normal synchronizer does not invent historical BUY activities from current balances. If PPI history is insufficient, use `--bootstrap-holdings` with a user-provided JSON file containing the opening date, quantity, unit price, currency, and symbol. Run its dry-run first.
+The normal synchronizer does not invent historical BUY activities from current balances. If PPI history is insufficient, use `--bootstrap-holdings` with a user-provided JSON file containing the opening date, quantity, unit price, currency, and symbol. Bootstrap entries have their own deterministic `ppi-bootstrap:` marker and are checked in the configured target account before importing. Both `DRY_RUN=true` and `--dry-run` enable bootstrap validation without persistence.
+
+Bootstrap requires an explicit UTC `BOOTSTRAP_CUTOFF_DATE`. Every bootstrap entry must be dated strictly before that cutoff; normal PPI history starts at the cutoff even if `SYNC_FROM_DATE` is earlier or omitted. This prevents an opening position and its historical source movements from being imported for the same period. If `SYNC_TO_DATE` is earlier than the cutoff, configuration fails before PPI is contacted.
 
 ## Docker
 
@@ -190,6 +196,7 @@ The final image runs as the non-root `bun` user and contains only the bundled CL
 bun run typecheck
 bun test
 bun run lint
+bun run secrets
 ```
 
 ## Limitations

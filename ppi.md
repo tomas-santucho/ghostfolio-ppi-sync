@@ -6,7 +6,7 @@ For the complete test-account validation, controlled import, rerun, recovery, an
 
 ## Safe operating procedure
 
-1. Set `SYNC_FROM_DATE` and, for a bounded run, `SYNC_TO_DATE`.
+1. Set `SYNC_FROM_DATE` and, for a bounded run, `SYNC_TO_DATE`. If bootstrap entries are used, set `BOOTSTRAP_CUTOFF_DATE`; bootstrap dates must precede it and normal history begins at it.
 2. Run `bun run sync --dry-run` first and inspect the final reconciliation report.
 3. Run the import only when the dry-run reports the expected mapped, skipped, and failed counts.
 4. Do not repeatedly run `--ppi-only` or `--ppi-orders` over an unrestricted history. They are diagnostic reads and can consume PPI quota; use the normal bounded sync for validation.
@@ -35,7 +35,11 @@ Every sync and dry-run prints the same categories:
 - `Validation failed`: source or Ghostfolio validation failures.
 - `HTTP failed`: failed reads or import batches.
 
-Skipped and failed entries are reported only through deterministic SHA-256 fingerprints, never by exposing raw PPI movements. Each skipped warning includes a movement type and a concrete reason. A failed Ghostfolio batch reports its activity range and the completed count, so rerunning safely recovers the uncompleted portion.
+Skipped and failed entries are reported only through deterministic SHA-256 fingerprints, never by exposing raw PPI movements. Each skipped warning includes a movement type and a concrete reason. A failed Ghostfolio batch reports its activity range and the completed count. Activities after that batch are reported as `Unattempted`; activities whose write status cannot be reconciled are reported as `Uncertain` and are never resent automatically.
+
+`Validation failed` includes local mapping failures and non-transient Ghostfolio `4xx` rejections. `HTTP failed` is reserved for read, transport, and transient import failures; it does not overlap `Validation failed`. `Imported` is confirmed accepted work (validated work during dry-run), while `Mapped` includes entries later classified as duplicates or failures.
+
+Before attaching support evidence, run `bun run secrets`. Share only the command, version, UTC date range, summary counts, opaque fingerprints, HTTP status, and sanitized error type. Never share credentials, account IDs, headers, descriptions, or raw provider payloads.
 
 ## Ghostfolio batch size
 

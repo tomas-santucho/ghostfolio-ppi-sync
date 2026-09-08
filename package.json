@@ -1,12 +1,13 @@
 {
   "name": "ghostfolio-ppi-sync",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Read-only PPI to Ghostfolio transaction synchronizer",
   "type": "module",
   "scripts": {
     "sync": "bun src/index.ts",
     "test": "bun test",
     "lint": "eslint src tests",
+    "secrets": "bun scripts/check-secrets.ts && bun test tests/errors.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
