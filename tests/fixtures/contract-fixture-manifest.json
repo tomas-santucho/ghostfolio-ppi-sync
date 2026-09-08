@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "anonymization": "Identifiers are replaced with stable synthetic labels; dates and economic values are retained only where needed for mapping regression.",
+  "fixtures": [
+    {"id":"ppi-al30-trades","file":"ppi-al30-trades.json","provider":"PPI API 1.0","observedOn":"2026-05-20","operations":["BUY","SELL"],"expected":{"currencySpecies":["ARS","USD_CCL"],"payloadProvider":"MANUAL","preserve":["date","quantity","unitPrice","amount","balance"]}},
+    {"id":"ppi-dividend-movements","file":"ppi-dividend-movements.json","provider":"PPI API 1.0","observedOn":"2026-08-14","operations":["DIVIDEND","FEE"],"expected":{"payloadProvider":"YAHOO","preserve":["date","currency","amount","symbol"]}},
+    {"id":"ppi-cash-income","file":"ppi-cash-income.json","provider":"PPI API 1.0","observedOn":"2024-02-01","operations":["DEPOSIT","WITHDRAWAL","DIVIDEND","FEE","INTEREST"],"expected":{"cashBuckets":["ARS","USD_GLOBAL","USD_MEP","USD_CCL"],"preserve":["date","amount","currency","balance"],"errorShapes":["unsupported-coupon-currency","income-reversal","unreferenced-commission"]}},
+    {"id":"ghostfolio-dividend-fee-response","file":"ghostfolio-dividend-fee-response.json","provider":"Ghostfolio import/activity contract","observedOn":"2026-08-14","operations":["BUY","DIVIDEND","FEE"],"expected":{"nullableFields":["symbol"],"preserve":["type","currency","quantity","unitPrice","comment"]}},
+    {"id":"ppi-grouped-positions","file":"ppi-grouped-positions.json","provider":"PPI API 1.0","observedOn":"2026-08-14","operations":["POSITIONS"],"expected":{"nullableFields":["isin","ppc"],"decimalExtremes":true}}
+  ]
+}
