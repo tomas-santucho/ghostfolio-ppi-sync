@@ -74,7 +74,7 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
@@ -131,6 +131,7 @@ Deposits and withdrawals are opt-in. Before enabling them, create four `MANUAL` 
 
 ```dotenv
 PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
+PPI_CASH_ACTIVITY_IMPORT=false
 ```
 
 | PPI label family | Ghostfolio asset | ISO currency |
@@ -140,7 +141,7 @@ PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD","USD_MEP
 | `MEP` / `billete` | `GF_PPI_CASH_USD_MEP` | `USD` |
 | `CCL` / `cable` / `divisa` | `GF_PPI_CASH_USD_CCL` | `USD` |
 
-With this configuration, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, transfers, and cash assets omitted from the configuration are warned and skipped.
+Only with `PPI_CASH_ACTIVITY_IMPORT=true`, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. A supported investment BUY also creates a matching cash SELL, and a supported investment SELL creates a matching cash BUY, using PPI's signed settlement amount rather than recalculating it from quantity and price. This prevents cash from remaining in the portfolio after it funded a trade. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, missing cash assets, and broker settlement amounts with an unexpected sign are reported as skipped cash settlements; the investment activity remains eligible for import.
 
 Do not model MEP/CCL conversions automatically yet. They require a verified relationship between the source and destination PPI movements; the synchronizer will not infer one from adjacent cash rows.
 
@@ -218,7 +219,7 @@ bun run secrets
 
 ## Limitations
 
-- DEPOSIT and WITHDRAWAL require the explicit `PPI_CASH_ASSETS` configuration and pre-created Ghostfolio MANUAL assets. They are otherwise skipped.
+- DEPOSIT, WITHDRAWAL, and trade-settlement cash legs require both explicit `PPI_CASH_ASSETS` mappings and `PPI_CASH_ACTIVITY_IMPORT=true`. It remains disabled by default: enable it only after independently reconciling the complete PPI cash history and the ending balances for every cash bucket. A configured asset map does not establish that coverage.
 - FCI, cauciones, ONs, amortizing bonds, exchanges, and splits are skipped pending explicit mapping rules and fixtures.
 - The observed PPI exchange and split rows have no instrument execution data; they are not converted into synthetic BUY or SELL activities.
 - A standalone commission is reported and skipped unless PPI provides a stable association with its originating trade.

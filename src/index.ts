@@ -12,6 +12,7 @@ function report(summary:SyncSummary,logger:Logger):void {
   logger.info(`Imported: ${summary.imported}`);
   logger.info(`Duplicates: ${summary.duplicates}`);
   logger.info(`Unsupported: ${summary.unsupported}`);
+  logger.info(`Cash settlements skipped: ${summary.cashSettlementSkipped}`);
   logger.info(`Validation failed: ${summary.validationFailed}`);
   logger.info(`HTTP failed: ${summary.httpFailed}`);
   logger.info(`Unattempted: ${summary.unattempted}`);
@@ -50,7 +51,7 @@ async function main():Promise<void> {
   if(process.argv.includes('--ppi-orders')) { const orders=await ppiClient.getOrders({accountId:ppi.accountId,...ppiRange}); logger.info(`PPI connection successful. Found ${orders.length} historical orders.`); return; }
   const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
   const ghostfolio=new GhostfolioHttpClient(config.ghostfolio);
-  const summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,warn:message=>logger.warn(message)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,warn:message=>logger.warn(message)});
+  const summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)});
   report(summary,logger); logger.info(config.dryRun?'Dry-run completed.':'Sync completed successfully.');
 }
 void main().catch(error=>{if(error instanceof SyncRunError){const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');logger.error(error.message);report(error.summary,logger);}else console.error(error instanceof Error?error.message:'Fatal error');process.exitCode=1;});

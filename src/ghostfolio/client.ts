@@ -6,7 +6,36 @@ import type { GhostfolioActivity, GhostfolioClient, GhostfolioImportActivity, Gh
 type Fetcher=(input:RequestInfo|URL,init?:RequestInit)=>Promise<Response>;
 type Sleeper=(milliseconds:number)=>Promise<void>;
 type ImportBatchResult={activities:GhostfolioActivity[];validationFailures:GhostfolioActivity[]};
+type ManualAssetProfile={
+  symbol:string;
+  name:string;
+  currency:string;
+  dataSource:'MANUAL';
+  countries:[];
+  holdings:[];
+  isActive:true;
+  marketData:[];
+  sectors:[];
+};
 const sleep:Sleeper=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
+function manualAssetProfiles(activities:GhostfolioImportActivity[]){
+  const profiles=new Map<string,ManualAssetProfile>();
+  for(const activity of activities)if(activity.dataSource==='MANUAL'&&activity.symbol){
+    const key=`${activity.dataSource}:${activity.symbol}`;
+    if(!profiles.has(key))profiles.set(key,{
+      symbol:activity.symbol,
+      name:activity.symbol,
+      currency:activity.currency,
+      dataSource:'MANUAL',
+      countries:[],
+      holdings:[],
+      isActive:true,
+      marketData:[],
+      sectors:[]
+    });
+  }
+  return [...profiles.values()];
+}
 
 export class GhostfolioHttpClient implements GhostfolioClient {
   private bearerToken?:string;
@@ -54,7 +83,7 @@ export class GhostfolioHttpClient implements GhostfolioClient {
     for(let attempt=0;attempt<3;attempt++){
       const headers=await this.headers();
       let res:Response;
-      try{res=await this.fetcher(url,{method:'POST',headers,body:JSON.stringify({activities:pending}),signal:AbortSignal.timeout(15000)});}catch(cause){
+      try{res=await this.fetcher(url,{method:'POST',headers,body:JSON.stringify({activities:pending,assetProfiles:manualAssetProfiles(pending)}),signal:AbortSignal.timeout(15000)});}catch(cause){
         pending=await this.reconcileUncertainBatch(pending,cause);
         if(pending.length===0)return {activities:[],validationFailures:[]};
         if(attempt===2)throw new GhostfolioUnknownImportOutcomeError({pending:pending.length,cause});
@@ -83,6 +112,26 @@ export class GhostfolioHttpClient implements GhostfolioClient {
     throw new Error('Ghostfolio import retry loop exited unexpectedly');
   }
 
+  private async importBatchWithValidationIsolation(activities:GhostfolioImportActivity[],options:{dryRun?:boolean}):Promise<ImportBatchResult>{
+    try{return await this.importBatch(activities,options);}
+    catch(error){
+      const isValidationRejection=error instanceof HttpRequestError
+        &&error.details.service==='Ghostfolio'
+        &&error.details.status===400
+        &&/activities\.\d+\./.test(error.message);
+      if(!isValidationRejection)throw error;
+      if(activities.length===1){
+        const detail=error instanceof Error?error.message:'unknown validation error';
+        const failed:GhostfolioActivity={...activities[0],error:`Ghostfolio rejected this activity during validation: ${detail}`};
+        return {activities:[failed],validationFailures:[failed]};
+      }
+      const midpoint=Math.ceil(activities.length/2);
+      const left=await this.importBatchWithValidationIsolation(activities.slice(0,midpoint),options);
+      const right=await this.importBatchWithValidationIsolation(activities.slice(midpoint),options);
+      return {activities:[...left.activities,...right.activities],validationFailures:[...left.validationFailures,...right.validationFailures]};
+    }
+  }
+
   async importActivities(activities:GhostfolioImportActivity[],options:{dryRun?:boolean}={}):Promise<GhostfolioImportResult>{
     const batchSize=this.config.batchSize;
     const imported:GhostfolioActivity[]=[];
@@ -91,7 +140,7 @@ export class GhostfolioHttpClient implements GhostfolioClient {
     for(let index=0;index<activities.length;index+=batchSize){
       const batch=activities.slice(index,index+batchSize);
       try{
-        const result=await this.importBatch(batch,options);
+        const result=await this.importBatchWithValidationIsolation(batch,options);
         imported.push(...result.activities);
         validationFailures.push(...result.validationFailures);
         completed+=batch.length;

@@ -27,8 +27,8 @@ const itemSchema=z.object({
   market:z.string().trim().min(1).optional(),
   dataSource:z.enum(['YAHOO','MANUAL']).optional()
 }).superRefine((value,context)=>{
-  if(value.dataSource==='MANUAL'&&!/^GF_[A-Z0-9_]+$/i.test(value.mappedSymbol)){
-    context.addIssue({code:z.ZodIssueCode.custom,message:'MANUAL symbol overrides must target a GF_ asset'});
+  if(value.dataSource==='MANUAL'&&!z.string().uuid().safeParse(value.mappedSymbol).success&&!/^GF_[A-Z0-9_]+$/i.test(value.mappedSymbol)){
+    context.addIssue({code:z.ZodIssueCode.custom,message:'MANUAL symbol overrides must target a Ghostfolio custom-asset UUID or GF_ asset'});
   }
 });
 const schema=z.array(itemSchema);
