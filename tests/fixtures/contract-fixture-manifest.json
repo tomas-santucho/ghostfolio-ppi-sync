@@ -1,7 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "anonymization": "Identifiers are replaced with stable synthetic labels; dates and economic values are retained only where needed for mapping regression.",
   "fixtures": [
+    {"id":"ppi-contract-variants","file":"ppi-contract-variants.json","provider":"PPI API 1.0","observedOn":"2026-09-08","operations":["BUY","SELL","DIVIDEND","INTEREST","FEE","DEPOSIT","WITHDRAWAL"],"expected":{"explicitNormalizedAndPayload":true,"cashBuckets":["ARS","USD_GLOBAL","USD_MEP","USD_CCL"],"errorShapes":["income-reversal","invalid-date","complex-instrument","ambiguous-identity","unreferenced-commission"],"decimalExtremes":true,"nullableFields":["ticker"]}},
     {"id":"ppi-al30-trades","file":"ppi-al30-trades.json","provider":"PPI API 1.0","observedOn":"2026-05-20","operations":["BUY","SELL"],"expected":{"currencySpecies":["ARS","USD_CCL"],"payloadProvider":"MANUAL","preserve":["date","quantity","unitPrice","amount","balance"]}},
     {"id":"ppi-dividend-movements","file":"ppi-dividend-movements.json","provider":"PPI API 1.0","observedOn":"2026-08-14","operations":["DIVIDEND","FEE"],"expected":{"payloadProvider":"YAHOO","preserve":["date","currency","amount","symbol"]}},
     {"id":"ppi-cash-income","file":"ppi-cash-income.json","provider":"PPI API 1.0","observedOn":"2024-02-01","operations":["DEPOSIT","WITHDRAWAL","DIVIDEND","FEE","INTEREST"],"expected":{"cashBuckets":["ARS","USD_GLOBAL","USD_MEP","USD_CCL"],"preserve":["date","amount","currency","balance"],"errorShapes":["unsupported-coupon-currency","income-reversal","unreferenced-commission"]}},

@@ -7,6 +7,7 @@ const baseEnv=(apiUrl:string):Record<string,string>=>({
   PPI_PUBLIC_KEY:'synthetic-public',
   PPI_PRIVATE_KEY:'synthetic-private',
   PPI_ACCOUNT_ID:'synthetic-account',
+  PPI_ACCOUNT_IDS:'synthetic-account',
   GHOSTFOLIO_URL:apiUrl,
   GHOSTFOLIO_ACCESS_TOKEN:'synthetic-token',
   GHOSTFOLIO_ACCOUNT_ID:'synthetic-ghost',
@@ -22,6 +23,11 @@ async function runCli(args:string[],env:Record<string,string>):Promise<{exitCode
 test('CLI reports an empty mocked sync as success',async()=>{
   const server=Bun.serve({port:0,fetch(request){const path=new URL(request.url).pathname;if(path==='/api/1.0/Account/LoginApi')return Response.json([{accessToken:'synthetic-access',refreshToken:'synthetic-refresh',tokenType:'Bearer',expires:3600}]);if(path==='/api/1.0/Account/Movements'||path==='/api/v1/activities')return Response.json([]);return new Response('not found',{status:404});}});
   try{const result=await runCli(['--dry-run'],baseEnv(server.url.toString()));expect(result.exitCode).toBe(0);expect(result.output).toContain('Fetched: 0');expect(result.output).toContain('Dry-run completed.');}finally{server.stop(true);}
+});
+
+test('CLI reports separate opaque source-account summaries for a shared Ghostfolio target',async()=>{
+  const server=Bun.serve({port:0,fetch(request){const path=new URL(request.url).pathname;if(path==='/api/1.0/Account/LoginApi')return Response.json([{accessToken:'synthetic-access',refreshToken:'synthetic-refresh',tokenType:'Bearer',expires:3600}]);if(path==='/api/1.0/Account/Movements'||path==='/api/v1/activities')return Response.json([]);return new Response('not found',{status:404});}});
+  try{const result=await runCli(['--dry-run'],{...baseEnv(server.url.toString()),PPI_ACCOUNT_IDS:'synthetic-source-one,synthetic-source-two'});expect(result.exitCode).toBe(0);expect(result.output).toContain('Source account 1 summary: fetched=0');expect(result.output).toContain('Source account 2 summary: fetched=0');expect(result.output).not.toContain('synthetic-source-one');expect(result.output).not.toContain('synthetic-source-two');}finally{server.stop(true);}
 });
 
 test('CLI rejects an inverted diagnostic range before the local PPI server is called',async()=>{

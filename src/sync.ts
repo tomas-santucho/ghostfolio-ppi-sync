@@ -143,11 +143,14 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   return summary;
 }
 
-export async function runSyncForAccounts(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,accountIds:string[],options:Omit<Parameters<typeof runSync>[2],'ppiAccountId'>):Promise<SyncSummary>{
+export async function runSyncForAccounts(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,accountIds:string[],options:Omit<Parameters<typeof runSync>[2],'ppiAccountId'>&{onAccountComplete?:(sourceAccountIndex:number,summary:SyncSummary)=>void}):Promise<SyncSummary>{
   const total=emptySummary();
-  for(const ppiAccountId of accountIds){
-    try{addSummary(total,await runSync(ppi,ghostfolio,{...options,ppiAccountId}));}
-    catch(error){if(error instanceof SyncRunError){addSummary(total,error.summary);throw new SyncRunError(error.message,total,{cause:error});}throw error;}
+  const {onAccountComplete,...runOptions}=options;
+  let deferredValidationError:SyncRunError|undefined;
+  for(const [index,ppiAccountId] of accountIds.entries()){
+    try{const summary=await runSync(ppi,ghostfolio,{...runOptions,ppiAccountId});onAccountComplete?.(index+1,summary);addSummary(total,summary);}
+    catch(error){if(error instanceof SyncRunError){onAccountComplete?.(index+1,error.summary);addSummary(total,error.summary);if(error.summary.validationFailed>0&&error.summary.httpFailed===0&&error.summary.uncertain===0&&error.summary.unattempted===0){deferredValidationError??=error;continue;}throw new SyncRunError(error.message,total,{cause:error});}throw error;}
   }
+  if(deferredValidationError)throw new SyncRunError(deferredValidationError.message,total,{cause:deferredValidationError});
   return total;
 }
