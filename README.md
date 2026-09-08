@@ -74,7 +74,7 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_GHOSTFOLIO_ACCOUNT_MAP`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
@@ -172,7 +172,7 @@ bun run sync
 
 The process is idempotent: re-running the same source movements does not create duplicates.
 
-Multiple PPI source accounts may intentionally map to one Ghostfolio target account. Their versioned fingerprints retain the source account, so identical source IDs or tickers remain isolated. Every source account must have a non-empty target mapping before the run starts; an incomplete map fails before any Ghostfolio write.
+Multiple PPI source accounts always import into the single configured `GHOSTFOLIO_ACCOUNT_ID`. Their versioned fingerprints retain the source account, so identical source IDs or tickers remain isolated in the shared target account. Do not configure per-account Ghostfolio mappings.
 
 Use a dedicated Ghostfolio test account for every first validation and real import. The [integration and safe-operation playbook](integration-playbook.md) defines the required diagnostic, dry-run, import, rerun, recovery, and data-handling procedure.
 

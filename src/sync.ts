@@ -106,12 +106,10 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   return summary;
 }
 
-export async function runSyncForAccounts(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,accountIds:string[],accountMap:Record<string,string>,options:Omit<Parameters<typeof runSync>[2],'ppiAccountId'|'ghostfolioAccountId'>):Promise<SyncSummary>{
+export async function runSyncForAccounts(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:Pick<GhostfolioClient,'getActivities'|'importActivities'>,accountIds:string[],options:Omit<Parameters<typeof runSync>[2],'ppiAccountId'>):Promise<SyncSummary>{
   const total=emptySummary();
-  for(const ppiAccountId of accountIds)if(!accountMap[ppiAccountId])throw new Error(`No Ghostfolio account mapping for PPI account ${ppiAccountId}`);
   for(const ppiAccountId of accountIds){
-    const ghostfolioAccountId=accountMap[ppiAccountId];
-    try{addSummary(total,await runSync(ppi,ghostfolio,{...options,ppiAccountId,ghostfolioAccountId}));}
+    try{addSummary(total,await runSync(ppi,ghostfolio,{...options,ppiAccountId}));}
     catch(error){if(error instanceof SyncRunError){addSummary(total,error.summary);throw new SyncRunError(error.message,total,{cause:error});}throw error;}
   }
   return total;
