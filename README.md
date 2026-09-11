@@ -24,7 +24,7 @@ This project is not affiliated with Portfolio Personal Inversiones or Ghostfolio
 
 ## Supported scope
 
-The current release supports unambiguous BUY, SELL, DIVIDEND, INTEREST, and FEE mappings. ARS and USD PPI currency labels are normalized to ISO currency codes.
+The v1.0.0 release contract supports unambiguous BUY, SELL, DIVIDEND, INTEREST, and FEE mappings. ARS and USD PPI currency labels are normalized to ISO currency codes. Cash balances, deposits, withdrawals, and trade-settlement cash legs are outside that contract: they remain disabled by default and experimental if manually enabled.
 
 PPI and Ghostfolio data is validated with Zod. Amounts, quantities, prices, and fees remain decimal strings inside the domain model and are converted only at the Ghostfolio HTTP boundary.
 
@@ -125,9 +125,11 @@ BYMA bonds are never guessed as Yahoo symbols. Create Ghostfolio MANUAL assets f
 
 `symbol` is the PPI ticker and `mappedSymbol` is the Ghostfolio asset. AL30, AL30C, and AL30D remain separate because their trading currencies differ.
 
-## PPI cash balances: ARS, USD, MEP and CCL
+## Experimental PPI cash mapping (post-v1)
 
-Deposits and withdrawals are opt-in. Before enabling them, create four `MANUAL` assets in Ghostfolio and use their symbols below. PPI has distinct USD custody/settlement buckets; Ghostfolio still uses ISO `USD`, so the asset identity — rather than the currency code — keeps them separate.
+This configuration is retained for controlled research only; it is **not a supported v1 capability**. Keep `PPI_CASH_ACTIVITY_IMPORT=false` for v1. Enabling it manually does not promise PPI cash-balance reconciliation, nor support deposits, withdrawals, or settlement legs as part of the stable release contract.
+
+PPI has distinct USD custody/settlement buckets; Ghostfolio still uses ISO `USD`, so the asset identity — rather than the currency code — keeps them separate.
 
 ### Create the Ghostfolio cash profiles
 
@@ -147,7 +149,7 @@ For the sanitized live-evidence record and the remaining reconciliation work, re
 ```dotenv
 PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD_GLOBAL","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
 PPI_CASH_ACTIVITY_IMPORT=false
-# Required when enabling cash import. Do not list an unverified bucket.
+# Experimental only. Required if enabling manual research; do not list an unverified bucket.
 PPI_CASH_ENABLED_BUCKETS=ARS,USD_MEP
 ```
 
@@ -158,7 +160,7 @@ PPI_CASH_ENABLED_BUCKETS=ARS,USD_MEP
 | `MEP` / `billete` | `GF_PPI_CASH_USD_MEP` | `USD` |
 | `CCL` / `cable` / `divisa` | `GF_PPI_CASH_USD_CCL` | `USD` |
 
-Only with `PPI_CASH_ACTIVITY_IMPORT=true` **and** an explicit `PPI_CASH_ENABLED_BUCKETS` allowlist, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. A supported investment BUY also creates a matching cash SELL, and a supported investment SELL creates a matching cash BUY, using PPI's signed settlement amount rather than recalculating it from quantity and price. This prevents cash from remaining in the portfolio after it funded a trade. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, disabled buckets, missing cash assets, and broker settlement amounts with an unexpected sign are reported as skipped cash settlements; the investment activity remains eligible for import. Keep cash imports disabled until a dry-run is clean, then make one controlled test-account import and a duplicate-free rerun.
+Only during an explicitly controlled experiment, `PPI_CASH_ACTIVITY_IMPORT=true` **and** an explicit `PPI_CASH_ENABLED_BUCKETS` allowlist map an exact PPI `Ingreso de Fondos` to a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` maps to a `SELL`. A supported investment BUY can create a matching cash SELL, and a supported investment SELL a matching cash BUY, using PPI's signed settlement amount rather than recalculating it. This experimental behavior does not establish complete cash-history coverage or end-balance reconciliation. Unknown labels, disabled buckets, missing cash assets, and broker settlement amounts with an unexpected sign are reported as skipped cash settlements; the investment activity remains eligible for import.
 
 Do not model MEP/CCL conversions automatically yet. They require a verified relationship between the source and destination PPI movements; the synchronizer will not infer one from adjacent cash rows.
 
@@ -242,7 +244,7 @@ The offline contract corpus in `tests/fixtures/ppi-contract-variants.json` defin
 
 ## Limitations
 
-- DEPOSIT, WITHDRAWAL, and trade-settlement cash legs require both explicit `PPI_CASH_ASSETS` mappings and `PPI_CASH_ACTIVITY_IMPORT=true`. It remains disabled by default: enable it only after independently reconciling the complete PPI cash history and the ending balances for every cash bucket. A configured asset map does not establish that coverage.
+- Cash balances, DEPOSIT, WITHDRAWAL, and trade-settlement cash legs are experimental and outside the v1 support contract. `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default; a configured asset map or manual enablement does not establish PPI cash-history coverage or ending-balance reconciliation.
 - FCI, cauciones, ONs, amortizing bonds, exchanges, and splits are skipped pending explicit mapping rules and fixtures.
 - The observed PPI exchange and split rows have no instrument execution data; they are not converted into synthetic BUY or SELL activities.
 - A standalone commission is reported and skipped unless PPI provides a stable association with its originating trade.

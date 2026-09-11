@@ -1,4 +1,4 @@
-# Alcance y cambios esperados para v1.0.0
+# Alcance congelado para v1.0.0-rc.1
 
 ## Propósito
 
@@ -16,10 +16,11 @@ Todo lo que no esté en el contrato de soporte debe reconocerse cuando sea posib
 | Dividendos | Soportado |
 | Intereses con moneda, símbolo e instrumento verificados | Soportado |
 | Impuestos y fees con mapeo válido | Soportado |
-| Cash ARS | Validado en import controlado; disabled para operación normal hasta reconciliar saldos completos |
-| Cash USD Global | Disabled / unverified: no hay muestra fuente real |
-| Cash USD MEP | Validado en import controlado; disabled para operación normal hasta reconciliar saldos completos |
-| Cash USD CCL | Disabled / unverified: no hay movimiento de cash fuente verificable |
+| Cash ARS | Experimental / disabled por defecto — diferido post-v1 |
+| Cash USD MEP | Experimental / disabled por defecto — diferido post-v1 |
+| Cash USD Global | No soportado / sin verificar — post-v1 |
+| Cash USD CCL | No soportado / sin verificar — post-v1 |
+| DEPOSIT, WITHDRAWAL y settlement cash legs | Experimental / fuera del contrato v1 |
 | Bootstrap de posiciones | Soportado |
 | Múltiples fuentes PPI hacia una cuenta Ghostfolio | Soportado |
 | Idempotencia, fingerprints, retries y recovery | Soportado |
@@ -32,27 +33,13 @@ Todo lo que no esté en el contrato de soporte debe reconocerse cuando sea posib
 
 ## Bloqueantes antes de publicar
 
-### 1. Reconciliación económica real — issue #22
+### 1. Reconciliación de cash — issue #22 (diferida post-v1)
 
-Debe probarse el flujo completo en una cuenta Ghostfolio de prueba:
+La campaña 2016–2026 ya demostró que el importer principal es idempotente: importó 90 actividades reales y el rerun terminó con `Imported=0`, `Duplicates=181`, sin outcomes inciertos, HTTP ni validación. También demostró que ARS y MEP no reproducen los saldos actuales de PPI mientras queden fuera del modelo corporate actions, settlements, conversiones y otros flujos.
 
-```text
-PPI source
-  -> normalized transaction
-  -> Ghostfolio activity
-  -> holdings, cash and performance
-```
+Por ello #22 **no se cierra como completada** y deja de ser bloqueante de v1. Permanece como feature post-v1: modelo de cash fuente completo, evidencia CCL/Global, clasificación de settlements y conversiones, reconstrucción de ledger, conciliación opening + flows = ending, y validación de su representación en Ghostfolio.
 
-La evidencia no debe limitarse a contar filas. Debe comparar, cuando aplique:
-
-- posiciones finales;
-- cash final por bucket ARS, USD Global, MEP y CCL;
-- aportes y retiros;
-- ingresos;
-- impuestos y fees;
-- resultado/performance.
-
-También se requiere un import controlado, una segunda ejecución sin duplicados y una prueba de recuperación ante importación parcial o incierta. Mientras esta evidencia no exista, `PPI_CASH_ACTIVITY_IMPORT` debe permanecer deshabilitado.
+`PPI_CASH_ACTIVITY_IMPORT=false` es obligatorio por defecto en v1. Activarlo manualmente es una capacidad experimental, no soportada, y no habilita una promesa de conciliación de cash.
 
 ### 2. Contrato final de soporte — issue #29
 
@@ -167,11 +154,11 @@ Se puede publicar v1.0.0 cuando sea posible ejecutar una imagen versionada y afi
 - dos procesos no pueden sincronizar simultáneamente;
 - una operación desconocida no rompe ni contamina el resto;
 - todo lo fuera de la matriz aparece como unsupported explícito;
-- los números finales fueron reconciliados económicamente;
+- las operaciones declaradas como soportadas fueron reconciliadas económicamente dentro de su semántica; v1 no promete reconstrucción ni conciliación de saldos cash PPI;
 - el upgrade desde v0.5 conserva identidad;
 - la imagen `amd64`/`arm64`, documentación y release notes son reproducibles y consistentes.
 
-La ausencia de soporte para FCI, cauciones u ONs no impide v1 si esas exclusiones están declaradas y el comportamiento unsupported es seguro.
+La ausencia de soporte para cash, FCI, cauciones u ONs no impide v1 si esas exclusiones están declaradas y el comportamiento unsupported es seguro. La performance de Ghostfolio puede no reflejar la performance total de una cuenta PPI cuando existan cash flows, fees o settlements fuera del conjunto soportado.
 
 ## Estado de implementación al 2026-09-11
 
@@ -185,4 +172,8 @@ La evidencia controlada actual está en [`v1-reconciliation-evidence.md`](v1-rec
 | Lock de proceso | Implementado y testeado | Validar la misma `SYNC_LOCK_PATH` en cron/contenedor |
 | Unsupported corporate actions | Implementado para descripciones identificables | Fixture sanitizado del settlement ATVI |
 | Build multi-arquitectura reproducible | Workflow amd64/arm64 y lockfile estricto implementados | Publicar y registrar digests |
-| Cash y reconciliación económica | Campaña 2016–2026 importada y reejecutada sin duplicados; ARS/MEP aún no concilian por operaciones excluidas; Global USD/CCL disabled | Resolver o excluir contractualmente la discrepancia económica de issue #22 |
+| Cash y reconciliación económica | Campaña 2016–2026 importada y reejecutada sin duplicados; ARS/MEP no concilian por operaciones excluidas; Global USD/CCL sin evidencia | **Diferido post-v1 (#22)**. Todo cash queda experimental o no soportado y disabled por defecto. |
+
+## Freeze de RC
+
+Desde `v1.0.0-rc.1` no se agregan FCI, cauciones, ONs, cash reconciliation ni corporate actions nuevas. Sólo se aceptan bugs de correctness, hardening, evidencia RC y documentación de las capacidades ya declaradas.
