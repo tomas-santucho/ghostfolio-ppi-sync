@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { transactionsSchema } from '../src/ppi/schemas.js';
 import { classifyCashMovement } from '../src/mapping/cash-movements.js';
 import { ppiToNormalized } from '../src/mapping/ppi-to-normalized.js';
-import { runSync, SyncRunError } from '../src/sync.js';
+import { runSync } from '../src/sync.js';
 import type { GhostfolioActivity, GhostfolioImportActivity } from '../src/ghostfolio/types.js';
 
 const movements = transactionsSchema.parse(JSON.parse(readFileSync(new URL('./fixtures/ppi-cash-income.json', import.meta.url), 'utf8')));
@@ -61,18 +61,16 @@ test('does not invent a cash settlement when the broker amount sign contradicts 
   expect(warnings[0]).toContain('unexpected sign');
 });
 
-test('does not import a cash settlement when its investment activity fails Ghostfolio validation', async () => {
+test('does not import an unsupported ATVI activity or its cash settlement', async () => {
   const valid={...movements[0],ticker:'AAPL',currency:'Pesos',description:'Compra AAPL',quantity:2,price:10,amount:-20,balance:80};
   const invalid={...valid,agreementDate:'2024-02-02T12:00:00Z',ticker:'ATVI',description:'Compra ATVI',quantity:3,price:10,amount:-30,balance:50};
   const batches:GhostfolioImportActivity[][]=[];
-  const ghostfolio={getActivities:async()=>[],importActivities:async(batch:GhostfolioImportActivity[])=>{batches.push(batch);const invalidActivities=batch.filter(activity=>activity.symbol==='ATVI').map(activity=>({...activity,error:'invalid symbol'}));return {dryRun:true,imported:batch.length,activities:[],validationFailures:invalidActivities};}};
+  const ghostfolio={getActivities:async()=>[],importActivities:async(batch:GhostfolioImportActivity[])=>{batches.push(batch);return {dryRun:true,imported:batch.length,activities:[]};}};
   const options:Parameters<typeof runSync>[2]={ppiAccountId:'a',ghostfolioAccountId:'b',dryRun:true,symbolOverrides:[{symbol:'AAPL',mappedSymbol:'AAPL',dataSource:'YAHOO'},{symbol:'ATVI',mappedSymbol:'ATVI',dataSource:'YAHOO'}],cashAssets:{ARS:'GF_PPI_CASH_ARS'},cashActivityImport:true};
-  try{await runSync({getTransactions:async()=>[valid,invalid]},ghostfolio,options);throw new Error('expected validation failure');}
-  catch(error){
-    expect(error).toBeInstanceOf(SyncRunError);
-    expect((error as SyncRunError).summary).toMatchObject({mapped:4,imported:2,validationFailed:1,cashSettlementSkipped:1});
-  }
+  const result=await runSync({getTransactions:async()=>[valid,invalid]},ghostfolio,options);
+  expect(result).toMatchObject({mapped:2,imported:2,unsupported:1,validationFailed:0,cashSettlementSkipped:0});
   expect(batches).toHaveLength(2);
+  expect(batches[0]).toMatchObject([{type:'BUY',symbol:'AAPL',quantity:2,unitPrice:10}]);
   expect(batches[1]).toMatchObject([{type:'SELL',symbol:'GF_PPI_CASH_ARS',quantity:20,unitPrice:1}]);
 });
 

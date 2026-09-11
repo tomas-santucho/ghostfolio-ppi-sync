@@ -27,6 +27,27 @@ La cuenta de destino pasó de 100 a 104 actividades. Una comparación de
 identidad fuente→comentario de Ghostfolio confirmó 4 de 4 actividades esperadas
 (3 depósitos y 1 retiro), sin revelar los identificadores opacos.
 
+## Campaña histórica completa
+
+Con la misma allowlist, un dry-run del rango 2016-01-01 a 2026-12-31 produjo:
+
+| Fuente | Fetched | Mapped | Candidatas nuevas | Duplicados | Unsupported | Validación/HTTP/Incierto |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Ambas cuentas | 338 | 181 | 90 | 91 | 185 | 0 / 0 / 0 |
+
+El import real posterior agregó las 90 candidatas y dejó el destino en 194
+actividades. La repetición del rango completo devolvió `Imported=0` y
+`Duplicates=181`, sin errores de validación, HTTP o resultados inciertos.
+
+Una lectura posterior de `/api/v1/portfolio/holdings` comparada con
+`BalancesAndPositions` de PPI confirmó que ARS y MEP ya tienen holdings MANUAL
+en Ghostfolio, pero sus cantidades **no** coinciden todavía con los saldos PPI
+actuales, incluso después de la campaña histórica completa. CCL tiene saldo PPI
+pero no holding Ghostfolio; USD Global no tiene saldo ni holding en esta muestra.
+La diferencia está explicada por operaciones y monedas deliberadamente
+unsupported, incluyendo cash CCL y trade settlements no verificables. Demuestra
+por qué el switch de cash debe seguir apagado para operación normal.
+
 ## Cobertura de movimientos existentes
 
 Los dry-runs de ejemplos fuente ya existentes devolvieron cero errores de

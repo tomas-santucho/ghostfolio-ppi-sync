@@ -4,6 +4,8 @@
 
 - Require an explicit `PPI_CASH_ENABLED_BUCKETS` allowlist whenever cash import is enabled, preventing unverified USD Global or CCL buckets from being imported accidentally.
 - Record controlled real-import and duplicate-free rerun evidence for ARS and MEP cash movements; leave USD Global and CCL disabled pending source evidence.
+- Record that the controlled ARS/MEP holdings do not yet reconcile to current PPI cash balances, so normal cash import remains disabled pending issue #22.
+- Run the complete authorized test-account history, import its 90 validated activities, and verify a duplicate-free rerun; ATVI corporate-action rows now skip safely instead of failing Ghostfolio validation.
 - Make container builds reproducible by requiring the committed Bun lockfile without an install fallback.
 - Refresh PPI and security-token Ghostfolio sessions exactly once after a `401`; a repeated authorization failure stops safely.
 - Prevent concurrent sync/bootstrap imports with an atomic PID lock file; `SYNC_LOCK_PATH` can coordinate scheduled executions.

@@ -16,9 +16,9 @@ Todo lo que no esté en el contrato de soporte debe reconocerse cuando sea posib
 | Dividendos | Soportado |
 | Intereses con moneda, símbolo e instrumento verificados | Soportado |
 | Impuestos y fees con mapeo válido | Soportado |
-| Cash ARS | Soportado con evidencia real acotada; requiere allowlist explícita |
+| Cash ARS | Validado en import controlado; disabled para operación normal hasta reconciliar saldos completos |
 | Cash USD Global | Disabled / unverified: no hay muestra fuente real |
-| Cash USD MEP | Soportado con evidencia real acotada; requiere allowlist explícita |
+| Cash USD MEP | Validado en import controlado; disabled para operación normal hasta reconciliar saldos completos |
 | Cash USD CCL | Disabled / unverified: no hay movimiento de cash fuente verificable |
 | Bootstrap de posiciones | Soportado |
 | Múltiples fuentes PPI hacia una cuenta Ghostfolio | Soportado |
@@ -185,4 +185,4 @@ La evidencia controlada actual está en [`v1-reconciliation-evidence.md`](v1-rec
 | Lock de proceso | Implementado y testeado | Validar la misma `SYNC_LOCK_PATH` en cron/contenedor |
 | Unsupported corporate actions | Implementado para descripciones identificables | Fixture sanitizado del settlement ATVI |
 | Build multi-arquitectura reproducible | Workflow amd64/arm64 y lockfile estricto implementados | Publicar y registrar digests |
-| Cash y reconciliación económica | ARS y MEP importados y reejecutados sin duplicados; Global USD/CCL disabled | Comparar saldos económicos completos y registrar evidencia RC de issue #22 |
+| Cash y reconciliación económica | Campaña 2016–2026 importada y reejecutada sin duplicados; ARS/MEP aún no concilian por operaciones excluidas; Global USD/CCL disabled | Resolver o excluir contractualmente la discrepancia económica de issue #22 |
