@@ -1,7 +1,8 @@
 # Changelog
 
-## v1.0.0 — Multi-architecture release branch
+## v1.0.0 — Alcance y branch multi-arquitectura
 
+- Added `V1_SCOPE.md` with the proposed v1 support contract, release blockers, hardening work, deferred instrument families, and approval criteria.
 - Prepare the release branch with package metadata at `1.0.0`.
 - Publish GHCR images for both `linux/amd64` and `linux/arm64` using Docker Buildx and QEMU.
 
