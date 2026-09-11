@@ -36,7 +36,7 @@ The RC campaign passed 144 tests with zero failures, Bun `1.3.2`, and the
 Ghostfolio target frontend reported `2024.11.0`. The stable tag triggers the
 same frozen-lockfile multi-platform publication for `linux/amd64` and
 `linux/arm64`. Published stable digests and server pull/smoke evidence are
-recorded after the tag in the release evidence.
+recorded in `STABLE_RELEASE_EVIDENCE_v1.0.0.md`.
 
 The version-and-documentation-only stable commit was proportionally
 revalidated with typecheck, the complete test suite, lint, secret scan, and

@@ -5,6 +5,7 @@
 - Promote the validated `v1.0.0-rc.1` runtime to the stable `1.0.0` metadata and release contract without source-code changes.
 - Complete and close the RC failure campaign, container publication, and operator-maintenance gates before stable publication.
 - Add stable release notes and upgrade guidance; cash reconciliation remains explicitly deferred post-v1.
+- Publish `v1.0.0` successfully as a multi-platform OCI index; stable digests are recorded in the stable release evidence.
 
 ## v1.0.0-rc.1 — Scope freeze
 
