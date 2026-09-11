@@ -74,6 +74,8 @@ Los escenarios destructivos o de red deben probarse con fault injection local, s
 
 ### 4. Publicación reproducible — issue #31
 
+Estado: implementación terminada; falta verificar y registrar los digests de las imágenes candidatas publicadas.
+
 El build debe usar exclusivamente el lockfile:
 
 ```dockerfile
@@ -83,6 +85,8 @@ RUN bun install --frozen-lockfile
 No debe existir fallback silencioso a `bun install`. La imagen candidata debe probarse en `linux/amd64` y `linux/arm64`, ejecutarse como usuario no root, excluir credenciales y registrar su digest publicado.
 
 ### 5. Operación y mantenimiento — issue #32
+
+Estado: el CLI protege sync y bootstrap con un lock file atómico que contiene PID, recupera locks de procesos ya terminados y libera el lock al finalizar. Falta la validación operativa en el entorno de cron/contenedor y completar troubleshooting de release.
 
 La documentación debe cubrir instalación, precedencia de configuración, cuentas, fechas, dry-run, bootstrap, retries, cuota, recovery y troubleshooting seguro. Debe existir una política real para impedir ejecuciones simultáneas.
 
@@ -100,7 +104,7 @@ Garantía requerida:
 
 > Todas las actividades destino relevantes para reconciliación se recuperan exhaustivamente.
 
-Aceptar `[]` o `{ activities: [] }` no alcanza si la respuesta puede estar paginada.
+Implementado: el cliente acepta las respuestas completas compatibles (`[]` o `{ activities: [] }`) y rechaza explícitamente respuestas que declaren paginación, `hasMore`, `nextPage`, `count` o `total` superiores a las filas recibidas. Así nunca reconcilia contra un historial detectablemente incompleto. La campaña RC debe registrar la versión de Ghostfolio y confirmar su contrato de lista completa para el target real.
 
 ### Recuperación de autenticación
 
@@ -111,11 +115,11 @@ Para PPI y, conceptualmente, Ghostfolio cuando corresponda:
 401 otra vez -> detenerse
 ```
 
-No debe haber loops de refresh.
+Implementado y cubierto por tests: tanto PPI como Ghostfolio con `GHOSTFOLIO_SECURITY_TOKEN` invalidan la sesión al primer `401`, autentican nuevamente y reintentan una vez. Un segundo `401` detiene la ejecución; no hay loops de refresh. Un `GHOSTFOLIO_ACCESS_TOKEN` estático no se puede renovar y falla directamente.
 
 ### Exclusión de ejecuciones concurrentes
 
-Implementar un lock simple para el proceso, por ejemplo `flock` en el wrapper de cron/container o un lock file con PID/lease. Dos ejecuciones no deben poder leer el mismo estado y enviar simultáneamente la misma actividad.
+Implementado: el CLI usa un lock file atómico por defecto en el directorio temporal del sistema. Se puede fijar una ubicación estable con `SYNC_LOCK_PATH`; el archivo incluye el PID para recuperar un lock abandonado. Dos ejecuciones que comparten esa ruta no pueden importar simultáneamente.
 
 ### Estado benigno para operaciones unsupported
 
@@ -132,6 +136,8 @@ CASH_MERGER      -> unsupported: cash_merger_not_supported
 ```
 
 ATVI debe continuar sin generar una venta normal ni acciones MSFT hasta disponer de evidencia de settlement y una representación fiel.
+
+Implementado: FCI, cauciones, deuda amortizable, canjes, splits, fusiones, mergers, adquisiciones, delistings, bajas de cotización y cash-in-lieu se marcan como `unsupported` con categoría estable y nunca generan operaciones sintéticas. ATVI queda deliberadamente pendiente de evidencia de settlement; una fila que no se identifique como corporate action todavía requiere clasificación basada en un fixture real y sanitizado.
 
 ## Comisiones
 
@@ -166,3 +172,15 @@ Se puede publicar v1.0.0 cuando sea posible ejecutar una imagen versionada y afi
 - la imagen `amd64`/`arm64`, documentación y release notes son reproducibles y consistentes.
 
 La ausencia de soporte para FCI, cauciones u ONs no impide v1 si esas exclusiones están declaradas y el comportamiento unsupported es seguro.
+
+## Estado de implementación al 2026-09-11
+
+| Área | Estado | Evidencia pendiente |
+| --- | --- | --- |
+| Fallback de órdenes históricas y multi-account | Implementado y validado en dry-run para la cuenta 177551 | Import controlado de RC |
+| Sesiones PPI/Ghostfolio | Implementado; refresh único ante 401 | Prueba contra instancia RC |
+| Reconciliación de writes inciertos | Implementada y fail-safe ante paginación detectable | Confirmar contrato de la versión Ghostfolio objetivo |
+| Lock de proceso | Implementado y testeado | Validar la misma `SYNC_LOCK_PATH` en cron/contenedor |
+| Unsupported corporate actions | Implementado para descripciones identificables | Fixture sanitizado del settlement ATVI |
+| Build multi-arquitectura reproducible | Workflow amd64/arm64 y lockfile estricto implementados | Publicar y registrar digests |
+| Cash y reconciliación económica | Deliberadamente deshabilitado | Evidencia end-to-end de issue #22 |

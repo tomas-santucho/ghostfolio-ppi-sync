@@ -74,7 +74,7 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER_FALLBACK`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER_FALLBACK`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, `BOOTSTRAP_CUTOFF_DATE`, and `SYNC_LOCK_PATH`.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
@@ -188,6 +188,8 @@ bun run sync
 
 The process is idempotent: re-running the same source movements does not create duplicates.
 
+Normal sync and bootstrap runs take an atomic process lock before they read or import data. It defaults to the system temporary directory. For scheduled containers or multiple hosts, set `SYNC_LOCK_PATH` to one shared, writable path; separate paths cannot coordinate concurrent imports.
+
 Multiple PPI source accounts always import into the single configured `GHOSTFOLIO_ACCOUNT_ID`. Configure them once in a nonempty, comma-separated `PPI_ACCOUNT_IDS` list; duplicate source IDs fail configuration before PPI or Ghostfolio is contacted. Their versioned fingerprints retain the source account, so identical source IDs or tickers remain isolated in the shared target account. Multi-account runs emit an opaque numbered summary for each source, followed by the aggregate summary; account IDs are never written to logs. An account-local Ghostfolio validation error is retained in the nonzero final report but does not suppress later sources; PPI/transport/uncertain-write failures still stop the run. Do not configure per-account Ghostfolio mappings.
 
 Use a dedicated Ghostfolio test account for every first validation and real import. The [integration and safe-operation playbook](integration-playbook.md) defines the required diagnostic, dry-run, import, rerun, recovery, and data-handling procedure.
@@ -223,7 +225,7 @@ docker run --rm --env-file .env ppi-ghostfolio-sync
 
 The container is one-shot. Scheduling is intentionally external to the project.
 
-The final image runs as the non-root `bun` user and contains only the bundled CLI and runtime manifest; `.env`, tests, local PPI documentation and Git metadata are excluded from the build context.
+The build requires the committed Bun lockfile (`bun install --frozen-lockfile`); a stale or absent lockfile fails the build rather than resolving new dependencies. The final image runs as the non-root `bun` user and contains only the bundled CLI and runtime manifest; `.env`, tests, local PPI documentation and Git metadata are excluded from the build context.
 
 ## Development
 

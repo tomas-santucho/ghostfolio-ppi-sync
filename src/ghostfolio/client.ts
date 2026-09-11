@@ -55,12 +55,26 @@ export class GhostfolioHttpClient implements GhostfolioClient {
 
   private async headers(){return {'content-type':'application/json',authorization:`Bearer ${await this.token()}`};}
 
+  private async authorizedFetch(input:RequestInfo|URL,init:RequestInit):Promise<Response>{
+    let refreshed=false;
+    for(;;){
+      const res=await this.fetcher(input,{...init,headers:await this.headers()});
+      if(res.status!==401||refreshed||!this.config.securityToken)return res;
+      refreshed=true;
+      this.bearerToken=undefined;
+    }
+  }
+
   async getActivities():Promise<GhostfolioActivity[]>{
-    const res=await this.fetcher(new URL('/api/v1/activities',this.config.url),{headers:await this.headers(),signal:AbortSignal.timeout(15000)});
+    const res=await this.authorizedFetch(new URL('/api/v1/activities',this.config.url),{signal:AbortSignal.timeout(15000)});
     if(!res.ok){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio activities HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'activities',status:res.status,retryAfterMs:retryAfterMs(res.headers.get('retry-after'))});}
     const body:unknown=await res.json();
     if(Array.isArray(body))return activitiesSchema.parse(body) as GhostfolioActivity[];
-    if(body&&typeof body==='object'&&Array.isArray((body as {activities?:unknown}).activities))return activitiesSchema.parse((body as {activities:unknown[]}).activities) as GhostfolioActivity[];
+    if(body&&typeof body==='object'&&Array.isArray((body as {activities?:unknown}).activities)){
+      const response=body as {activities:unknown[];count?:unknown;total?:unknown;hasMore?:unknown;pagination?:unknown;nextPage?:unknown};
+      if(response.hasMore===true||response.pagination!==undefined||response.nextPage!==undefined||(typeof response.count==='number'&&response.count>response.activities.length)||(typeof response.total==='number'&&response.total>response.activities.length))throw new Error('Ghostfolio activities response is paginated; exhaustive reconciliation is unavailable');
+      return activitiesSchema.parse(response.activities) as GhostfolioActivity[];
+    }
     throw new Error('Ghostfolio activities response shape unsupported');
   }
 
@@ -81,9 +95,8 @@ export class GhostfolioHttpClient implements GhostfolioClient {
     if(options.dryRun)url.searchParams.set('dryRun','true');
     let pending=activities;
     for(let attempt=0;attempt<3;attempt++){
-      const headers=await this.headers();
       let res:Response;
-      try{res=await this.fetcher(url,{method:'POST',headers,body:JSON.stringify({activities:pending,assetProfiles:manualAssetProfiles(pending)}),signal:AbortSignal.timeout(15000)});}catch(cause){
+      try{res=await this.authorizedFetch(url,{method:'POST',body:JSON.stringify({activities:pending,assetProfiles:manualAssetProfiles(pending)}),signal:AbortSignal.timeout(15000)});}catch(cause){
         pending=await this.reconcileUncertainBatch(pending,cause);
         if(pending.length===0)return {activities:[],validationFailures:[]};
         if(attempt===2)throw new GhostfolioUnknownImportOutcomeError({pending:pending.length,cause});

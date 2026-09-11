@@ -2,6 +2,11 @@
 
 ## v1.0.0 — Alcance y branch multi-arquitectura
 
+- Make container builds reproducible by requiring the committed Bun lockfile without an install fallback.
+- Refresh PPI and security-token Ghostfolio sessions exactly once after a `401`; a repeated authorization failure stops safely.
+- Prevent concurrent sync/bootstrap imports with an atomic PID lock file; `SYNC_LOCK_PATH` can coordinate scheduled executions.
+- Fail safe when Ghostfolio declares a paginated activities response, and explicitly skip recognized corporate actions instead of creating synthetic trades.
+- Update `V1_SCOPE.md` with the implemented hardening, remaining RC evidence, and the ATVI settlement boundary.
 - Added `V1_SCOPE.md` with the proposed v1 support contract, release blockers, hardening work, deferred instrument families, and approval criteria.
 - Prepare the release branch with package metadata at `1.0.0`.
 - Publish GHCR images for both `linux/amd64` and `linux/arm64` using Docker Buildx and QEMU.
