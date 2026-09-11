@@ -78,6 +78,10 @@ Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
+### Configuration precedence
+
+Bun loads a local `.env` for development, but an explicitly exported process environment variable takes precedence. Docker Compose reads the same `.env`; its service-level `environment` block overrides it, including the shared `SYNC_LOCK_PATH` in `docker-compose.example.yml`. Keep credentials only in `.env` or the deployment secret store, never in Compose YAML or tracked files.
+
 ### Identity and scoped overrides
 
 New activities use the versioned comment identity `ppi-sync:ppi:v2:<source-account>:<hash>`. Its canonical fields are the source account, PPI external ID when present, normalized activity type and UTC date, original source symbol, quantity, unit price, fee, ISO currency, and source balance. The mapped Ghostfolio symbol, provider, market, and ISIN are deliberately excluded so an override change does not reimport historical source activity.
@@ -181,6 +185,8 @@ bun run sync --ppi-account
 bun run sync --ghostfolio-only
 bun run sync --bootstrap-holdings --dry-run
 ```
+
+`--bootstrap-holdings` additionally requires both `BOOTSTRAP_HOLDINGS_FILE` and `BOOTSTRAP_CUTOFF_DATE`; the command fails before contacting Ghostfolio when either is absent.
 
 `--ppi-only` and `--ppi-orders` use `SYNC_FROM_DATE` and `SYNC_TO_DATE` when configured, so diagnostics can remain within the same controlled range as a sync.
 

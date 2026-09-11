@@ -7,6 +7,8 @@
 - Tag: `v1.0.0-rc.1`
 - GitHub Actions run: `34652129445`
 - Publication result: success
+- Bun: `1.3.2`
+- Ghostfolio target: frontend-reported `2024.11.0`
 
 ## Published OCI image
 
