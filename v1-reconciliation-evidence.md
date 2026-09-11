@@ -1,4 +1,4 @@
-# Evidencia de reconciliación v1 — parcial
+# Evidencia de importación e idempotencia v1
 
 Fecha de ejecución: 2026-09-11  
 Rama: `release/v1.0.0`  
@@ -63,7 +63,7 @@ faltantes y que un resultado no reconciliable detiene la ejecución.
 
 ## Límites que permanecen abiertos
 
-Esta evidencia no cierra #22 todavía:
+Esta evidencia no cierra #22 y, desde el scope freeze de `v1.0.0-rc.1`, no intenta hacerlo:
 
 - No hubo muestra fuente de interés con identidad/instrumento verificable.
 - No hubo movimiento fuente de cash USD Global ni CCL; ambos continúan
@@ -75,5 +75,7 @@ Esta evidencia no cierra #22 todavía:
 - La cuenta de prueba autorizada contiene actividad previa, por lo que esta
   ejecución acotada no prueba por sí sola una reconciliación desde cero.
 
-La próxima campaña RC debe aportar esos datos de forma anonimizada antes de
-cerrar la issue #22.
+La issue #22 queda diferida post-v1 para reconstruir el ledger completo y
+conciliar cash PPI. No bloquea v1 porque cash, depósitos, retiros y settlement
+legs no forman parte del contrato estable; `PPI_CASH_ACTIVITY_IMPORT` permanece
+en `false` por defecto.

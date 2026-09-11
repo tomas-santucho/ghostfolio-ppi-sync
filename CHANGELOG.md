@@ -6,6 +6,7 @@
 - Defer issue #22 to post-v1 rather than marking it complete: the full 2016–2026 import is duplicate-free, but ARS/MEP ending balances require source flows intentionally outside v1 scope.
 - State explicitly that supported operations reconcile within their own semantics; v1 does not promise PPI cash-ledger reconstruction or cash-balance reconciliation.
 - Set the release package version to `1.0.0-rc.1` and document the RC feature freeze.
+- Publish `v1.0.0-rc.1` successfully to GHCR as an OCI multi-platform index; the exact platform digests are recorded in the RC evidence.
 
 ## v1.0.0 — Alcance y branch multi-arquitectura
 
