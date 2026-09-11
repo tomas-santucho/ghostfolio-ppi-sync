@@ -1,4 +1,4 @@
-# Alcance congelado para v1.0.0-rc.1
+# Alcance estable de v1.0.0
 
 ## Propósito
 
@@ -176,4 +176,4 @@ La evidencia controlada actual está en [`v1-reconciliation-evidence.md`](v1-rec
 
 ## Freeze de RC
 
-Desde `v1.0.0-rc.1` no se agregan FCI, cauciones, ONs, cash reconciliation ni corporate actions nuevas. Sólo se aceptan bugs de correctness, hardening, evidencia RC y documentación de las capacidades ya declaradas.
+La versión estable `v1.0.0` no agregó FCI, cauciones, ONs, cash reconciliation ni corporate actions nuevas después del freeze. El código de runtime se conserva respecto del candidato `08d1ef6`; los commits posteriores contienen sólo evidencia y documentación de release.

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.0 — Stable release
+
+- Promote the validated `v1.0.0-rc.1` runtime to the stable `1.0.0` metadata and release contract without source-code changes.
+- Complete and close the RC failure campaign, container publication, and operator-maintenance gates before stable publication.
+- Add stable release notes and upgrade guidance; cash reconciliation remains explicitly deferred post-v1.
+
 ## v1.0.0-rc.1 — Scope freeze
 
 - Freeze the v1 release contract: cash balances, DEPOSIT/WITHDRAWAL, and trade-settlement cash legs are experimental and disabled by default, not supported v1 capabilities.
