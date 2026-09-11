@@ -190,7 +190,7 @@ bun run sync
 
 The process is idempotent: re-running the same source movements does not create duplicates.
 
-Normal sync and bootstrap runs take an atomic process lock before they read or import data. It defaults to the system temporary directory. For scheduled containers or multiple hosts, set `SYNC_LOCK_PATH` to one shared, writable path; separate paths cannot coordinate concurrent imports.
+Normal sync and bootstrap runs take an atomic process lock before they read or import data. It defaults to the system temporary directory. For scheduled containers or multiple hosts, set `SYNC_LOCK_PATH` to one shared, writable path; separate paths cannot coordinate concurrent imports. The supplied Compose file mounts a named volume at `/var/lib/ppi-sync` for this purpose. Locks from another container host fail closed until their six-hour lease expires; normal completion always removes the lock.
 
 Multiple PPI source accounts always import into the single configured `GHOSTFOLIO_ACCOUNT_ID`. Configure them once in a nonempty, comma-separated `PPI_ACCOUNT_IDS` list; duplicate source IDs fail configuration before PPI or Ghostfolio is contacted. Their versioned fingerprints retain the source account, so identical source IDs or tickers remain isolated in the shared target account. Multi-account runs emit an opaque numbered summary for each source, followed by the aggregate summary; account IDs are never written to logs. An account-local Ghostfolio validation error is retained in the nonzero final report but does not suppress later sources; PPI/transport/uncertain-write failures still stop the run. Do not configure per-account Ghostfolio mappings.
 

@@ -119,7 +119,7 @@ Implementado y cubierto por tests: tanto PPI como Ghostfolio con `GHOSTFOLIO_SEC
 
 ### Exclusión de ejecuciones concurrentes
 
-Implementado: el CLI usa un lock file atómico por defecto en el directorio temporal del sistema. Se puede fijar una ubicación estable con `SYNC_LOCK_PATH`; el archivo incluye el PID para recuperar un lock abandonado. Dos ejecuciones que comparten esa ruta no pueden importar simultáneamente.
+Implementado: el CLI usa un lock file atómico por defecto en el directorio temporal del sistema. Se puede fijar una ubicación estable con `SYNC_LOCK_PATH`; el archivo incluye PID y hostname. Un lock de otra instancia/container falla cerrado y sólo se recupera tras una lease de seis horas; un lock del mismo host se recupera cuando su PID ya no existe. El ejemplo Compose monta un volumen compartido para que dos contenedores no puedan importar simultáneamente.
 
 ### Estado benigno para operaciones unsupported
 
