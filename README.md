@@ -147,6 +147,8 @@ For the sanitized live-evidence record and the remaining reconciliation work, re
 ```dotenv
 PPI_CASH_ASSETS={"ARS":"GF_PPI_CASH_ARS","USD_GLOBAL":"GF_PPI_CASH_USD_GLOBAL","USD_MEP":"GF_PPI_CASH_USD_MEP","USD_CCL":"GF_PPI_CASH_USD_CCL"}
 PPI_CASH_ACTIVITY_IMPORT=false
+# Required when enabling cash import. Do not list an unverified bucket.
+PPI_CASH_ENABLED_BUCKETS=ARS,USD_MEP
 ```
 
 | PPI label family | Ghostfolio asset | ISO currency |
@@ -156,7 +158,7 @@ PPI_CASH_ACTIVITY_IMPORT=false
 | `MEP` / `billete` | `GF_PPI_CASH_USD_MEP` | `USD` |
 | `CCL` / `cable` / `divisa` | `GF_PPI_CASH_USD_CCL` | `USD` |
 
-Only with `PPI_CASH_ACTIVITY_IMPORT=true`, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. A supported investment BUY also creates a matching cash SELL, and a supported investment SELL creates a matching cash BUY, using PPI's signed settlement amount rather than recalculating it from quantity and price. This prevents cash from remaining in the portfolio after it funded a trade. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, missing cash assets, and broker settlement amounts with an unexpected sign are reported as skipped cash settlements; the investment activity remains eligible for import. Keep cash imports disabled until a dry-run is clean, then make one controlled test-account import and a duplicate-free rerun.
+Only with `PPI_CASH_ACTIVITY_IMPORT=true` **and** an explicit `PPI_CASH_ENABLED_BUCKETS` allowlist, an exact PPI `Ingreso de Fondos` becomes a Ghostfolio `BUY` of the matching cash asset at unit price `1`; `Retiro de Fondos` becomes a `SELL`. A supported investment BUY also creates a matching cash SELL, and a supported investment SELL creates a matching cash BUY, using PPI's signed settlement amount rather than recalculating it from quantity and price. This prevents cash from remaining in the portfolio after it funded a trade. The normalized record and its fingerprint retain the original `DEPOSIT` or `WITHDRAWAL` meaning. Unknown labels, disabled buckets, missing cash assets, and broker settlement amounts with an unexpected sign are reported as skipped cash settlements; the investment activity remains eligible for import. Keep cash imports disabled until a dry-run is clean, then make one controlled test-account import and a duplicate-free rerun.
 
 Do not model MEP/CCL conversions automatically yet. They require a verified relationship between the source and destination PPI movements; the synchronizer will not infer one from adjacent cash rows.
 

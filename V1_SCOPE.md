@@ -16,10 +16,10 @@ Todo lo que no esté en el contrato de soporte debe reconocerse cuando sea posib
 | Dividendos | Soportado |
 | Intereses con moneda, símbolo e instrumento verificados | Soportado |
 | Impuestos y fees con mapeo válido | Soportado |
-| Cash ARS | Soportado cuando cierre la reconciliación end-to-end |
-| Cash USD Global | Soportado sólo con evidencia real |
-| Cash USD MEP | Soportado sólo con evidencia real |
-| Cash USD CCL | Soportado sólo con evidencia real |
+| Cash ARS | Soportado con evidencia real acotada; requiere allowlist explícita |
+| Cash USD Global | Disabled / unverified: no hay muestra fuente real |
+| Cash USD MEP | Soportado con evidencia real acotada; requiere allowlist explícita |
+| Cash USD CCL | Disabled / unverified: no hay movimiento de cash fuente verificable |
 | Bootstrap de posiciones | Soportado |
 | Múltiples fuentes PPI hacia una cuenta Ghostfolio | Soportado |
 | Idempotencia, fingerprints, retries y recovery | Soportado |
@@ -175,6 +175,8 @@ La ausencia de soporte para FCI, cauciones u ONs no impide v1 si esas exclusione
 
 ## Estado de implementación al 2026-09-11
 
+La evidencia controlada actual está en [`v1-reconciliation-evidence.md`](v1-reconciliation-evidence.md). No sustituye la reconciliación económica completa de #22.
+
 | Área | Estado | Evidencia pendiente |
 | --- | --- | --- |
 | Fallback de órdenes históricas y multi-account | Implementado y validado en dry-run para la cuenta 177551 | Import controlado de RC |
@@ -183,4 +185,4 @@ La ausencia de soporte para FCI, cauciones u ONs no impide v1 si esas exclusione
 | Lock de proceso | Implementado y testeado | Validar la misma `SYNC_LOCK_PATH` en cron/contenedor |
 | Unsupported corporate actions | Implementado para descripciones identificables | Fixture sanitizado del settlement ATVI |
 | Build multi-arquitectura reproducible | Workflow amd64/arm64 y lockfile estricto implementados | Publicar y registrar digests |
-| Cash y reconciliación económica | Deliberadamente deshabilitado | Evidencia end-to-end de issue #22 |
+| Cash y reconciliación económica | ARS y MEP importados y reejecutados sin duplicados; Global USD/CCL disabled | Comparar saldos económicos completos y registrar evidencia RC de issue #22 |
