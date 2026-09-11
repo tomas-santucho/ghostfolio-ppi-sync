@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.0.0 — Multi-architecture release branch
+
+- Prepare the release branch with package metadata at `1.0.0`.
+- Publish GHCR images for both `linux/amd64` and `linux/arm64` using Docker Buildx and QEMU.
+
+## v0.5.1 — Historical order fallback
+
+- Import completed PPI historical orders when their accounting movements are not available yet.
+- Reuse stable PPI order IDs to prevent duplicates when the corresponding movement is published later.
+- Keep order enrichment and fallback read-only; no PPI trading endpoints are used.
+
 ## v0.5.0 — Release branch
 
 - Added `v0.5.0_final_handoff.md` as the authoritative continuation record, including branch state, verified work, open acceptance criteria, reconciliation boundaries, and safe next steps.

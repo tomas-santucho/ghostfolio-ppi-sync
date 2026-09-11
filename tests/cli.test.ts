@@ -8,6 +8,7 @@ const baseEnv=(apiUrl:string):Record<string,string>=>({
   PPI_PRIVATE_KEY:'synthetic-private',
   PPI_ACCOUNT_ID:'synthetic-account',
   PPI_ACCOUNT_IDS:'synthetic-account',
+  PPI_ORDER_FALLBACK:'false',
   GHOSTFOLIO_URL:apiUrl,
   GHOSTFOLIO_ACCESS_TOKEN:'synthetic-token',
   GHOSTFOLIO_ACCOUNT_ID:'synthetic-ghost',

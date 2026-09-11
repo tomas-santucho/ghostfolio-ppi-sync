@@ -74,7 +74,7 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER_FALLBACK`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, and `BOOTSTRAP_CUTOFF_DATE`.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
@@ -205,6 +205,8 @@ Ghostfolio comments intentionally contain only `ppi-sync:` or `ppi-bootstrap:` p
 ### Optional order enrichment
 
 Set `PPI_ORDER_ENRICHMENT=true` only when PPI returns historical rows from its read-only `Order/Orders` endpoint. The synchronizer then adds the documented PPI order ID to a trade fingerprint only when one order matches the movement uniquely across direction, ticker, currency, UTC day, quantity, price, and amount. It never guesses a commission association. Existing imports created without an order ID remain duplicate-safe.
+
+`PPI_ORDER_FALLBACK=true` imports a completed historical order when no matching accounting movement exists yet. This covers PPI orders that appear in **Órdenes históricas** before they appear in **Todos los movimientos**. The order ID is used in the fingerprint, and once the matching movement appears later it is recognized as the same activity. It is opt-in by default; this project's `.env` enables it. Set it to `false` if the account's order feed is incomplete or you require movement-only imports.
 
 ## Bootstrap existing holdings
 

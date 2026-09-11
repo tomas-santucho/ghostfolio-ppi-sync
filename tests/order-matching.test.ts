@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { enrichTransactionsWithOrderIds } from '../src/ppi/order-matching.js';
+import { addMissingCompletedOrders, enrichTransactionsWithOrderIds } from '../src/ppi/order-matching.js';
 import type { PpiOrder, PpiTransaction } from '../src/ppi/types.js';
 
 const trade: PpiTransaction = {agreementDate:'2024-01-01T12:00:00Z',currency:'USD',amount:'-100.00',price:'10.0',description:'Compra AAPL',ticker:'AAPL',quantity:'10',balance:'0'};
@@ -13,4 +13,14 @@ test('does not guess an order id for ambiguous or mismatched rows',()=>{
   expect(enrichTransactionsWithOrderIds([trade],[order,{...order,id:43}])[0].externalId).toBeUndefined();
   expect(enrichTransactionsWithOrderIds([trade],[{...order,price:'10.01'}])[0].externalId).toBeUndefined();
   expect(enrichTransactionsWithOrderIds([{...trade,description:'Comisiones Opciones SAXO'}],[order])[0].externalId).toBeUndefined();
+});
+
+test('adds a completed order when its accounting movement is not available yet',()=>{
+  const [fallback] = addMissingCompletedOrders([], [order]);
+  expect(fallback).toMatchObject({externalId:'order:42',description:'Compra AAPL',ticker:'AAPL',quantity:'10.00',price:'10'});
+});
+
+test('does not add an order when the matching movement is already present',()=>{
+  expect(addMissingCompletedOrders([trade],[order])).toHaveLength(1);
+  expect(addMissingCompletedOrders([], [{...order,status:'PENDING'}])).toHaveLength(0);
 });

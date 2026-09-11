@@ -9,7 +9,7 @@ import { normalizeCurrency } from './mapping/currency.js';
 import { isUnreferencedCommission } from './mapping/cash-movements.js';
 import { resolveCashAsset } from './mapping/cash-assets.js';
 import type { CashAssetMap } from './mapping/cash-assets.js';
-import { enrichTransactionsWithOrderIds } from './ppi/order-matching.js';
+import { addMissingCompletedOrders, enrichTransactionsWithOrderIds } from './ppi/order-matching.js';
 import { deriveTradeCashSettlement } from './mapping/trade-settlements.js';
 import type { NormalizedTransaction } from './types.js';
 
@@ -26,13 +26,17 @@ function unsupportedReason(transaction:Awaited<ReturnType<PpiClient['getTransact
 function uniqueInstrument(ticker:string,currency:string|undefined,instruments:Awaited<ReturnType<NonNullable<PpiClient['searchInstrument']>>>):Awaited<ReturnType<NonNullable<PpiClient['searchInstrument']>>>[number]|undefined{const key=ticker.trim().toUpperCase();const exact=instruments.filter(item=>item.ticker.trim().toUpperCase()===key);const normalizedCurrency=currency?normalizeCurrency(currency):undefined;const currencyMatches=normalizedCurrency?instruments.filter(item=>normalizeCurrency(item.currency)===normalizedCurrency):[];const preferred=exact.filter(item=>!normalizedCurrency||normalizeCurrency(item.currency)===normalizedCurrency);if(preferred.length===1)return preferred[0];const bondMatches=currencyMatches.filter(item=>item.market==='BYMA'&&item.type==='BONOS');if(bondMatches.length>1&&currency){const upper=currency.toUpperCase();const suffix=upper.includes('CABLE')||upper.includes('CCL')||upper.includes('DIVISA')?'C':upper.includes('MEP')||upper.includes('BILLETE')?'D':undefined;const species=suffix?bondMatches.filter(item=>item.ticker.trim().toUpperCase()===`${key}${suffix}`):[];if(species.length===1)return species[0];}if(currencyMatches.length===1)return currencyMatches[0];return undefined;}
 function skip(summary:SyncSummary,transaction:Awaited<ReturnType<PpiClient['getTransactions']>>[number],type:string,reason:string,warn:(message:string)=>void){const fingerprint=sourceMovementFingerprint(transaction);summary.unsupported++;summary.skippedFingerprints.push(fingerprint);warn(`PPI movement type=${type} fingerprint=${fingerprint}: skipped; ${reason}`);}
 
-export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:GhostfolioClient,options:{ppiAccountId:string;ghostfolioAccountId:string;from?:Date;to?:Date;dryRun:boolean;enrichOrders?:boolean;symbolOverrides?:SymbolOverride[];cashAssets?:CashAssetMap;cashActivityImport?:boolean;warn?:(message:string)=>void}):Promise<SyncSummary>{
+export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:GhostfolioClient,options:{ppiAccountId:string;ghostfolioAccountId:string;from?:Date;to?:Date;dryRun:boolean;enrichOrders?:boolean;orderFallback?:boolean;symbolOverrides?:SymbolOverride[];cashAssets?:CashAssetMap;cashActivityImport?:boolean;warn?:(message:string)=>void}):Promise<SyncSummary>{
   const summary=emptySummary();
   const warn=options.warn??(()=>undefined);
   let transactions:Awaited<ReturnType<PpiClient['getTransactions']>>;
   try{
     transactions=await ppi.getTransactions({accountId:options.ppiAccountId,from:options.from,to:options.to});
-    if(options.enrichOrders&&ppi.getOrders)transactions=enrichTransactionsWithOrderIds(transactions,await ppi.getOrders({accountId:options.ppiAccountId,from:options.from,to:options.to}));
+    if((options.enrichOrders||options.orderFallback)&&ppi.getOrders){
+      const orders=await ppi.getOrders({accountId:options.ppiAccountId,from:options.from,to:options.to});
+      transactions=enrichTransactionsWithOrderIds(transactions,orders);
+      if(options.orderFallback)transactions=addMissingCompletedOrders(transactions,orders);
+    }
   }catch(error){summary.httpFailed++;throw new SyncRunError(error instanceof PpiRateLimitError?error.message:'PPI history could not be read',summary,{cause:error});}
   summary.fetched=transactions.length;
   let existing:Awaited<ReturnType<GhostfolioClient['getActivities']>>;
