@@ -7,6 +7,7 @@
 - State explicitly that supported operations reconcile within their own semantics; v1 does not promise PPI cash-ledger reconstruction or cash-balance reconciliation.
 - Set the release package version to `1.0.0-rc.1` and document the RC feature freeze.
 - Publish `v1.0.0-rc.1` successfully to GHCR as an OCI multi-platform index; the exact platform digests are recorded in the RC evidence.
+- Record the operator's successful server-side Docker pull, smoke, and shared-lock validation; close the container-publication gate.
 
 ## v1.0.0 — Alcance y branch multi-arquitectura
 

@@ -22,12 +22,15 @@ The published index was inspected remotely with Docker Buildx and contains both
 required platforms. GitHub Actions completed the frozen-lockfile install,
 typecheck, tests, lint, version/tag check, QEMU setup, and Buildx publication.
 
+## Container validation
+
+The operator verified the published image on a server, including the Docker
+pull/smoke path and shared-container lock behavior. This closes the container
+publication and Docker operational-validation gates; this workstation's Docker
+Desktop Linux engine being unavailable is therefore not a release blocker.
+
 ## Remaining RC gates
 
-- Pull each published platform image and run a smoke test. This workstation
-  could not do that because its Docker Desktop Linux engine was unavailable.
-- Execute the operational scheduler/container validation with one shared
-  `SYNC_LOCK_PATH`.
 - Finish the RC failure-campaign record on the exact candidate behavior; the
   offline suite already covers uncertain persistence, partial batches,
   validation rejection, PPI 429, auth refresh, multi-account recovery,
