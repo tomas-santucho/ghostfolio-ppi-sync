@@ -59,7 +59,7 @@ async function main():Promise<void> {
   const ghostfolio=new GhostfolioHttpClient(config.ghostfolio);
   const release=await acquireRunLock();
   let summary:SyncSummary;
-  const targets={ghostfolioAccountId:config.ghostfolio.accountId,ghostfolioAccountIdsByCurrency:config.ghostfolio.accountIdsByCurrency};
+  const targets={ghostfolioAccountId:config.ghostfolio.accountId,ghostfolioAccountIdsByCurrency:config.ghostfolio.accountIdsByCurrency,ghostfolioAccountIdsByPpiAccount:config.ghostfolio.accountIdsByPpiAccount};
   try{summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{...targets,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message),onAccountComplete:(index,result)=>reportSourceAccount(index,result,logger)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,...targets,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)});}finally{await release();}
   report(summary,logger); logger.info(config.dryRun?'Dry-run completed.':'Sync completed successfully.');
 }

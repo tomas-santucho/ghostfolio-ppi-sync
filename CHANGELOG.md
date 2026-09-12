@@ -6,6 +6,7 @@
 - Keep target batches isolated so Ghostfolio uncertain-write reconciliation remains account-safe, and reject partial or ambiguous target configuration before contacting either service.
 - Keep PPI cash reconciliation outside the v1 contract; `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default.
 - Record the completed two-source dry-run/import/rerun validation and its intentional currency-only aggregation boundary in `MULTI_ACCOUNT_VALIDATION.md`.
+- Add per-source ARS/USD target pairs through `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`, so two PPI sources can be isolated across four Ghostfolio accounts.
 
 ## v1.0.0 — Stable release
 

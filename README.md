@@ -81,6 +81,8 @@ Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER
 
 Normal sync supports either one legacy `GHOSTFOLIO_ACCOUNT_ID`, or an explicit pair of `GHOSTFOLIO_ACCOUNT_ID_ARS` and `GHOSTFOLIO_ACCOUNT_ID_USD`. The pair must be configured together and cannot be combined with the legacy variable. In split-target mode, all normalized ARS activities go to the ARS target and normalized USD activities—including MEP and CCL instruments represented in ISO USD—go to the USD target. Import batches are separated by target so uncertain-write recovery remains account-safe. Bootstrap and synthetic Ghostfolio diagnostic commands require the legacy single-target variable.
 
+For per-source reconciliation, use `PPI_GHOSTFOLIO_ACCOUNT_TARGETS` instead. It is a JSON object with one `{ "ARS": "…", "USD": "…" }` target pair for every `PPI_ACCOUNT_IDS` source, and is exclusive with both other target modes. This creates a source-account × currency boundary: four Ghostfolio accounts for two PPI sources. It prevents one source's history from changing another source's holdings.
+
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
 ### Configuration precedence

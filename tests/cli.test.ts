@@ -14,6 +14,7 @@ const baseEnv=(apiUrl:string):Record<string,string>=>({
   GHOSTFOLIO_ACCOUNT_ID:'synthetic-ghost',
   GHOSTFOLIO_ACCOUNT_ID_ARS:'',
   GHOSTFOLIO_ACCOUNT_ID_USD:'',
+  PPI_GHOSTFOLIO_ACCOUNT_TARGETS:'',
   LOG_LEVEL:'info'
 });
 

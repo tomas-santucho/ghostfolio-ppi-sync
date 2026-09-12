@@ -5,18 +5,19 @@ Date: 2026-09-12
 ## Configuration tested
 
 - Two PPI source accounts.
-- Two new Ghostfolio destinations: one for normalized ARS activities and one for normalized USD activities.
-- No legacy Ghostfolio target configured.
+- Four new Ghostfolio destinations: one ARS and one USD account for each source.
+- `PPI_GHOSTFOLIO_ACCOUNT_TARGETS` defines exactly one ARS/USD pair for every PPI source.
+- No legacy or currency-only Ghostfolio target configured.
 - `PPI_CASH_ACTIVITY_IMPORT=false`.
 
 ## Result
 
-The full configured history completed successfully in dry-run and in a real import. The real import wrote 116 supported activities; its immediate rerun wrote zero activities and reported all 116 as duplicates. Both runs had zero Ghostfolio validation failures, HTTP failures, unattempted writes, and uncertain outcomes.
+The full configured history completed successfully in dry-run and in a real import. The dry-run prepared 116 supported activities. The real import wrote those 116 activities, and its immediate rerun wrote zero activities and reported all 116 as duplicates. Every run had zero Ghostfolio validation failures, HTTP failures, unattempted writes, and uncertain outcomes.
 
-The Ghostfolio destinations visibly contain 43 ARS-target activities and 73 USD-target activities, matching the 116 imported activities.
+After refreshing Ghostfolio, the four destinations showed 15, 72, 28, and 1 activities respectively, for a total of 116. This verifies that each source history is contained by its own source-account × currency targets.
+
+The recent `S13N6` purchase from the second PPI source is present in that source's ARS destination with the matching quantity. It is no longer combined with the other source account's holding.
 
 ## Reconciliation boundary
 
-The split-target mode aggregates every configured PPI source by normalized currency. It is therefore not a per-source-account representation. A visual check of one PPI source account found its recent `S13N6` purchase present in Ghostfolio, but the ARS target shows twice that source-account quantity because it contains movements from both configured sources.
-
-This confirms import routing and idempotency, but it does **not** demonstrate per-source holding reconciliation. Cash remains explicitly outside the v1 contract. To reconcile each PPI source separately, configure distinct Ghostfolio targets per source (and, if required, per currency) rather than the current two currency-only targets.
+This record confirms supported-security routing, per-source isolation, and idempotency. Cash remains explicitly outside the v1 contract: deposits, withdrawals, settlements, conversions, and PPI cash balances are not represented or reconciled by this validation.
