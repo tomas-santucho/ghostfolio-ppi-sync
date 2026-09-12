@@ -7,6 +7,7 @@
 - Keep PPI cash reconciliation outside the v1 contract; `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default.
 - Record the completed two-source dry-run/import/rerun validation and its intentional currency-only aggregation boundary in `MULTI_ACCOUNT_VALIDATION.md`.
 - Add per-source ARS/USD target pairs through `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`, so two PPI sources can be isolated across four Ghostfolio accounts.
+- Skip a SELL that would create a negative holding when PPI history lacks its opening acquisition; this avoids presenting closed historical positions as current debt.
 
 ## v1.0.0 — Stable release
 
