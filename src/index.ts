@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseBootstrapCutoffDate, parseSyncRange } from './config.js';
+import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseBootstrapCutoffDate, parseSyncRange, requireSingleGhostfolioAccount } from './config.js';
 import { importBootstrapHoldings, parseBootstrapHoldings } from './bootstrap.js';
 import { GhostfolioHttpClient } from './ghostfolio/client.js';
 import { Logger } from './logger.js';
@@ -38,13 +38,13 @@ async function main():Promise<void> {
     const dryRun=process.argv.includes('--dry-run')||process.env.DRY_RUN==='true';
     const release=await acquireRunLock();
     let result;
-    try{result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),config.accountId,{dryRun,cutoffDate});}finally{await release();}
+    try{result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),requireSingleGhostfolioAccount(config,'--bootstrap-holdings'),{dryRun,cutoffDate});}finally{await release();}
     logger.info(`Bootstrap ${dryRun?'validated':'imported'} ${result.imported} holdings; skipped ${result.duplicates} duplicates.`);
     return;
   }
   if(process.argv.includes('--ghostfolio-import-dry-run')) {
     const config=loadGhostfolioConfig(process.env);
-    const result=await new GhostfolioHttpClient(config).importActivities([{accountId:config.accountId,type:'BUY',date:'2024-01-01T00:00:00.000Z',symbol:'MSFT',currency:'USD',quantity:1,unitPrice:1,fee:0,dataSource:'YAHOO',comment:'ppi-sync-test-dry-run'}],{dryRun:true});
+    const result=await new GhostfolioHttpClient(config).importActivities([{accountId:requireSingleGhostfolioAccount(config,'--ghostfolio-import-dry-run'),type:'BUY',date:'2024-01-01T00:00:00.000Z',symbol:'MSFT',currency:'USD',quantity:1,unitPrice:1,fee:0,dataSource:'YAHOO',comment:'ppi-sync-test-dry-run'}],{dryRun:true});
     logger.info('Ghostfolio import dry-run successful. No data was persisted.');
     logger.info(`Validated activities: ${result.imported}`);
     return;
@@ -59,7 +59,8 @@ async function main():Promise<void> {
   const ghostfolio=new GhostfolioHttpClient(config.ghostfolio);
   const release=await acquireRunLock();
   let summary:SyncSummary;
-  try{summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message),onAccountComplete:(index,result)=>reportSourceAccount(index,result,logger)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)});}finally{await release();}
+  const targets={ghostfolioAccountId:config.ghostfolio.accountId,ghostfolioAccountIdsByCurrency:config.ghostfolio.accountIdsByCurrency};
+  try{summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{...targets,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message),onAccountComplete:(index,result)=>reportSourceAccount(index,result,logger)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,...targets,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)});}finally{await release();}
   report(summary,logger); logger.info(config.dryRun?'Dry-run completed.':'Sync completed successfully.');
 }
 void main().catch(error=>{if(error instanceof SyncRunError){const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');logger.error(error.message);report(error.summary,logger);}else console.error(error instanceof Error?error.message:'Fatal error');process.exitCode=1;});

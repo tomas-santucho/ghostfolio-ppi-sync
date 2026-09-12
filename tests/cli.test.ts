@@ -12,6 +12,8 @@ const baseEnv=(apiUrl:string):Record<string,string>=>({
   GHOSTFOLIO_URL:apiUrl,
   GHOSTFOLIO_ACCESS_TOKEN:'synthetic-token',
   GHOSTFOLIO_ACCOUNT_ID:'synthetic-ghost',
+  GHOSTFOLIO_ACCOUNT_ID_ARS:'',
+  GHOSTFOLIO_ACCOUNT_ID_USD:'',
   LOG_LEVEL:'info'
 });
 

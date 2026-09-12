@@ -1,6 +1,6 @@
 {
   "name": "ghostfolio-ppi-sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Read-only PPI to Ghostfolio transaction synchronizer",
   "type": "module",
   "scripts": {

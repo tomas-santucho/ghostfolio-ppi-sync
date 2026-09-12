@@ -26,7 +26,7 @@ function unsupportedReason(transaction:Awaited<ReturnType<PpiClient['getTransact
 function uniqueInstrument(ticker:string,currency:string|undefined,instruments:Awaited<ReturnType<NonNullable<PpiClient['searchInstrument']>>>):Awaited<ReturnType<NonNullable<PpiClient['searchInstrument']>>>[number]|undefined{const key=ticker.trim().toUpperCase();const exact=instruments.filter(item=>item.ticker.trim().toUpperCase()===key);const normalizedCurrency=currency?normalizeCurrency(currency):undefined;const currencyMatches=normalizedCurrency?instruments.filter(item=>normalizeCurrency(item.currency)===normalizedCurrency):[];const preferred=exact.filter(item=>!normalizedCurrency||normalizeCurrency(item.currency)===normalizedCurrency);if(preferred.length===1)return preferred[0];const bondMatches=currencyMatches.filter(item=>item.market==='BYMA'&&item.type==='BONOS');if(bondMatches.length>1&&currency){const upper=currency.toUpperCase();const suffix=upper.includes('CABLE')||upper.includes('CCL')||upper.includes('DIVISA')?'C':upper.includes('MEP')||upper.includes('BILLETE')?'D':undefined;const species=suffix?bondMatches.filter(item=>item.ticker.trim().toUpperCase()===`${key}${suffix}`):[];if(species.length===1)return species[0];}if(currencyMatches.length===1)return currencyMatches[0];return undefined;}
 function skip(summary:SyncSummary,transaction:Awaited<ReturnType<PpiClient['getTransactions']>>[number],type:string,reason:string,warn:(message:string)=>void){const fingerprint=sourceMovementFingerprint(transaction);summary.unsupported++;summary.skippedFingerprints.push(fingerprint);warn(`PPI movement type=${type} fingerprint=${fingerprint}: skipped; ${reason}`);}
 
-export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:GhostfolioClient,options:{ppiAccountId:string;ghostfolioAccountId:string;from?:Date;to?:Date;dryRun:boolean;enrichOrders?:boolean;orderFallback?:boolean;symbolOverrides?:SymbolOverride[];cashAssets?:CashAssetMap;cashActivityImport?:boolean;warn?:(message:string)=>void}):Promise<SyncSummary>{
+export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'searchInstrument'>,ghostfolio:GhostfolioClient,options:{ppiAccountId:string;ghostfolioAccountId?:string;ghostfolioAccountIdsByCurrency?:{ARS:string;USD:string};from?:Date;to?:Date;dryRun:boolean;enrichOrders?:boolean;orderFallback?:boolean;symbolOverrides?:SymbolOverride[];cashAssets?:CashAssetMap;cashActivityImport?:boolean;warn?:(message:string)=>void}):Promise<SyncSummary>{
   const summary=emptySummary();
   const warn=options.warn??(()=>undefined);
   let transactions:Awaited<ReturnType<PpiClient['getTransactions']>>;
@@ -41,13 +41,20 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   summary.fetched=transactions.length;
   let existing:Awaited<ReturnType<GhostfolioClient['getActivities']>>;
   try{existing=await ghostfolio.getActivities();}catch(error){summary.httpFailed++;throw new SyncRunError('Ghostfolio activities could not be read',summary,{cause:error});}
-  const existingIds=new Set(existing.filter(activity=>activity.accountId===options.ghostfolioAccountId).map(activity=>typeof activity.comment==='string'?activity.comment.replace(/^ppi-sync:/,''):''));
+  const targetAccountId=(currency:string):string=>{if(options.ghostfolioAccountIdsByCurrency){const target=options.ghostfolioAccountIdsByCurrency[currency as 'ARS'|'USD'];if(!target)throw new Error(`No Ghostfolio target configured for normalized currency ${currency}`);return target;}if(!options.ghostfolioAccountId)throw new Error('Ghostfolio target account is not configured');return options.ghostfolioAccountId;};
+  const existingIdsByAccount=new Map<string,Set<string>>();
+  for(const activity of existing){if(!activity.accountId)continue;const ids=existingIdsByAccount.get(activity.accountId)??new Set<string>();if(typeof activity.comment==='string')ids.add(activity.comment.replace(/^ppi-sync:/,''));existingIdsByAccount.set(activity.accountId,ids);}
   const primaryCandidates:GhostfolioImportActivity[]=[];
   const pendingSettlements:{activity:NormalizedTransaction;dependsOn:string;queuedPrimary:boolean}[]=[];
-  const consumedLegacyIds=new Set<string>();
+  const consumedLegacyIdsByAccount=new Map<string,Set<string>>();
   const settlementWarnings=new Set<string>();
   const enqueue=(candidate:NormalizedTransaction,sourceFingerprint:string,legacyBase?:NormalizedTransaction,target:GhostfolioImportActivity[]=primaryCandidates,countMapped=true):{id:string;queued:boolean}=>{
     if(countMapped)summary.mapped++;
+    const targetAccountIdForCandidate=targetAccountId(candidate.currency);
+    const existingIds=existingIdsByAccount.get(targetAccountIdForCandidate)??new Set<string>();
+    existingIdsByAccount.set(targetAccountIdForCandidate,existingIds);
+    const consumedLegacyIds=consumedLegacyIdsByAccount.get(targetAccountIdForCandidate)??new Set<string>();
+    consumedLegacyIdsByAccount.set(targetAccountIdForCandidate,consumedLegacyIds);
     const id=transactionId(candidate);
     if(existingIds.has(id)){summary.duplicates++;return {id,queued:false};}
     const compatibleIds=new Set([...compatibleTransactionIds(candidate),...(legacyBase?[...compatibleTransactionIds(legacyBase)]:[])]);
@@ -57,7 +64,7 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
     const legacyId=matchingIds[0];
     if(legacyId){if(consumedLegacyIds.has(legacyId))throw new Error(`Ambiguous legacy identity for source movement ${sourceFingerprint}`);consumedLegacyIds.add(legacyId);summary.duplicates++;return {id,queued:false};}
     existingIds.add(id);
-    target.push(normalizedToGhostfolio({...candidate,id},options.ghostfolioAccountId));
+    target.push(normalizedToGhostfolio({...candidate,id},targetAccountIdForCandidate));
     return {id,queued:true};
   };
   for(const transaction of transactions){
@@ -102,15 +109,21 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
   }
   const importCandidates=async(activities:GhostfolioImportActivity[]):Promise<Set<string>>=>{
     if(activities.length===0)return new Set();
+    const grouped=new Map<string,GhostfolioImportActivity[]>();
+    for(const activity of activities){const group=grouped.get(activity.accountId)??[];group.push(activity);grouped.set(activity.accountId,group);}
+    const failedIds=new Set<string>();
+    let attempted=0;
+    for(const group of grouped.values()){
     try{
-      const result=await ghostfolio.importActivities(activities,{dryRun:options.dryRun});
+      const result=await ghostfolio.importActivities(group,{dryRun:options.dryRun});
       const failed=result.validationFailures??[];
       summary.imported+=Math.max(0,result.imported-failed.length);
       summary.validationFailed+=failed.length;
-      const failedIds=new Set(failed.map(activityFingerprint));
-      summary.failedFingerprints.push(...failedIds);
+      const groupFailedIds=failed.map(activityFingerprint);
+      for(const id of groupFailedIds)failedIds.add(id);
+      summary.failedFingerprints.push(...groupFailedIds);
       for(const activity of failed)warn(`Ghostfolio validation failed for fingerprint=${activityFingerprint(activity)}; ${typeof activity.error==='string'?activity.error:'unknown validation error'}`);
-      return failedIds;
+      attempted+=group.length;
     }catch(error){
       if(error instanceof GhostfolioImportError){
         const priorValidationFailures=error.details.validationFailures??[];
@@ -120,16 +133,19 @@ export async function runSync(ppi:Pick<PpiClient,'getTransactions'|'getOrders'|'
         const validationRejection=error.details.cause instanceof HttpRequestError&&error.details.cause.details.service==='Ghostfolio'&&error.details.cause.details.status!==undefined&&error.details.cause.details.status>=400&&error.details.cause.details.status<500&&error.details.cause.details.status!==408&&error.details.cause.details.status!==429;
         if(validationRejection)summary.validationFailed+=error.details.failed;
         else summary.httpFailed+=error.details.failed;
-        summary.unattempted+=Math.max(0,activities.length-error.details.completed-error.details.failed);
+        summary.unattempted+=Math.max(0,group.length-error.details.completed-error.details.failed)+(activities.length-attempted-group.length);
         if(error.details.cause instanceof GhostfolioUnknownImportOutcomeError)summary.uncertain+=error.details.failed;
-        summary.failedFingerprints.push(...activities.slice(error.details.from-1,error.details.to).map(activityFingerprint));
+        summary.failedFingerprints.push(...group.slice(error.details.from-1,error.details.to).map(activityFingerprint));
         throw new SyncRunError(error.message,summary,{cause:error});
       }
-      summary.httpFailed+=activities.length;
-      summary.uncertain+=activities.length;
-      summary.failedFingerprints.push(...activities.map(activityFingerprint));
+      summary.httpFailed+=group.length;
+      summary.uncertain+=group.length;
+      summary.unattempted+=activities.length-attempted-group.length;
+      summary.failedFingerprints.push(...group.map(activityFingerprint));
       throw new SyncRunError('Ghostfolio import failed',summary,{cause:error});
     }
+    }
+    return failedIds;
   };
   const primaryFailures=await importCandidates(primaryCandidates);
   const settlementCandidates:GhostfolioImportActivity[]=[];

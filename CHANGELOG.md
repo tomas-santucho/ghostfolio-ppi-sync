@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.1 — In development
+
+- Add an explicit ARS/USD Ghostfolio target mode for normal sync, routing normalized activities by ISO currency while preserving the legacy single-target configuration.
+- Keep target batches isolated so Ghostfolio uncertain-write reconciliation remains account-safe, and reject partial or ambiguous target configuration before contacting either service.
+- Keep PPI cash reconciliation outside the v1 contract; `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default.
+- Record the completed two-source dry-run/import/rerun validation and its intentional currency-only aggregation boundary in `MULTI_ACCOUNT_VALIDATION.md`.
+
 ## v1.0.0 — Stable release
 
 - Promote the validated `v1.0.0-rc.1` runtime to the stable `1.0.0` metadata and release contract without source-code changes.
