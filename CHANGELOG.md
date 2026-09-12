@@ -8,6 +8,7 @@
 - Record the completed two-source dry-run/import/rerun validation and its intentional currency-only aggregation boundary in `MULTI_ACCOUNT_VALIDATION.md`.
 - Add per-source ARS/USD target pairs through `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`, so two PPI sources can be isolated across four Ghostfolio accounts.
 - Skip a SELL that would create a negative holding when PPI history lacks its opening acquisition; this avoids presenting closed historical positions as current debt.
+- Record the verified MEP current-balance projection and exclude historical activity accounts from dashboard analysis when their incomplete broker history would overstate live holdings.
 
 ## v1.0.0 — Stable release
 

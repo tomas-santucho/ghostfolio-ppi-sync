@@ -21,3 +21,9 @@ After refreshing Ghostfolio, the active ARS accounts are non-negative. The recen
 ## Reconciliation boundary
 
 This record confirms supported-security routing, per-source isolation, non-negative holdings for the represented history, and idempotency. It does not claim full PPI account-value reconciliation: PPI Global holdings and cash flows remain outside the v1 support contract. Cash remains explicitly outside the v1 contract: deposits, withdrawals, settlements, conversions, and PPI cash balances are not represented or reconciled by this validation.
+
+## Current MEP balance projection
+
+The historical activity accounts are retained for audit but excluded from Ghostfolio analysis. PPI's current positions include instruments that have already been closed in the available historical feed, so treating the activity ledger as the live portfolio overstated the dashboard.
+
+For the verified MEP snapshot, the active Ghostfolio accounts are the two `PPI MEP vigente` accounts, one per PPI source. They contain manual MEP balance assets matching the current PPI totals. Their combined Overview total matches the two source totals exactly at the snapshot time. This is an operational current-balance projection, not a claim that the v1 historical importer reconstructs the PPI cash or PPI Global ledger.
