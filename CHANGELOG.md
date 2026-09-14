@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.1 — In development
+## v1.0.0 — Stable release
 
 - Add an explicit ARS/USD Ghostfolio target mode for normal sync, routing normalized activities by ISO currency while preserving the legacy single-target configuration.
 - Keep target batches isolated so Ghostfolio uncertain-write reconciliation remains account-safe, and reject partial or ambiguous target configuration before contacting either service.
@@ -13,13 +13,6 @@
 - Document the required Ghostfolio account setup and the deliberate performance limitation of a current-value projection without PPI cost-basis history.
 - Support explicit PPI period-return projections with manual historical market data, allowing Ghostfolio to calculate a configured 30-day return while preserving the authoritative current PPI total.
 - Add `--sync-mep-holdings`, which exposes PPI's current instruments and quantities in Ghostfolio Holdings while allocating each source's authoritative MEP total across those positions.
-
-## v1.0.0 — Stable release
-
-- Promote the validated `v1.0.0-rc.1` runtime to the stable `1.0.0` metadata and release contract without source-code changes.
-- Complete and close the RC failure campaign, container publication, and operator-maintenance gates before stable publication.
-- Add stable release notes and upgrade guidance; cash reconciliation remains explicitly deferred post-v1.
-- Publish `v1.0.0` successfully as a multi-platform OCI index; stable digests are recorded in the stable release evidence.
 
 ## v1.0.0-rc.1 — Scope freeze
 
