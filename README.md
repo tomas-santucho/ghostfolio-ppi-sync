@@ -96,7 +96,7 @@ Use this mode when PPI's available movement history is incomplete (for example, 
 
 ```dotenv
 PPI_ACCOUNT_IDS=first-ppi-source,second-ppi-source
-PPI_MEP_BALANCE_PROJECTION={"accountIds":["ghostfolio-mep-source-1","ghostfolio-mep-source-2"],"values":[2472.29,178.97]}
+PPI_MEP_BALANCE_PROJECTION={"accountIds":["ghostfolio-mep-source-1","ghostfolio-mep-source-2"],"values":[2472.29,178.97],"performancePercentages":[3.37,0.21],"performanceDays":30,"asOfDate":"2026-09-12"}
 ```
 
 Run a dry-run first, then persist it:
@@ -108,7 +108,7 @@ bun run sync --sync-mep-balances
 
 The command maintains exactly one manual BUY activity per source. When PPI's total changes, it updates that activity's quantity in place; it never adds a compensating BUY or SELL. Re-running an unchanged projection yields zero writes. Update the configured MEP values from PPI before each scheduled run; PPI's documented read API exposes positions but not the web application's authoritative `Total valorizado MEP`, so the importer intentionally does not guess broker conversions or PPI Global valuations.
 
-This is a current-value projection, not a performance tracker. Ghostfolio shows zero performance for the manual asset because it has neither PPI's historical cost basis nor a market-price history. That is intentional: inventing a return from a single current balance would be misleading. Use the normal historical importer only for supported securities whose complete transaction history is available; do not combine those accounts with this projection merely to obtain a performance percentage.
+Without `performancePercentages`, Ghostfolio correctly shows `0.00%`: a current-balance-only projection has neither PPI's historical cost basis nor a market-price history. To project PPI's real, displayed period return, copy `Rendimiento últ. 30 días` for each source into `performancePercentages`, set `performanceDays` to `30`, and set `asOfDate` to PPI's valuation date. The synchronizer writes a manual price at the period start and a current price of `1`, then uses a single BUY at the corresponding start-of-period price. Ghostfolio therefore calculates the supplied PPI period return while the displayed current value remains the configured PPI total. This is a period-return projection—not all-time, lot-level performance—and must be refreshed from PPI each run.
 
 ### Configuration precedence
 

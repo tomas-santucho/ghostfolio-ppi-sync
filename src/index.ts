@@ -55,7 +55,7 @@ async function main():Promise<void> {
     const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
     if(!config.mepBalanceProjection)throw new Error('PPI_MEP_BALANCE_PROJECTION is required with --sync-mep-balances');
     const release=await acquireRunLock();
-    try{const result=await syncMepBalanceProjection(new GhostfolioHttpClient(config.ghostfolio),config.mepBalanceProjection,{dryRun:config.dryRun});logger.info(`MEP balance projection ${config.dryRun?'validated':'synchronized'}: prepared=${result.prepared}; imported=${result.imported}; updated=${result.updated}; duplicates=${result.duplicates}.`);}finally{await release();}
+    try{const result=await syncMepBalanceProjection(new GhostfolioHttpClient(config.ghostfolio),config.mepBalanceProjection,{dryRun:config.dryRun});logger.info(`MEP balance projection ${config.dryRun?'validated':'synchronized'}: prepared=${result.prepared}; imported=${result.imported}; updated=${result.updated}; duplicates=${result.duplicates}; manualMarketData=${result.marketData}.`);}finally{await release();}
     return;
   }
   const ppi=loadPpiConfig(process.env); const ppiClient=new PpiHttpClient(ppi);

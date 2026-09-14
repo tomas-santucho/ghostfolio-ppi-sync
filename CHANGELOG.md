@@ -11,6 +11,7 @@
 - Record the verified MEP current-balance projection and exclude historical activity accounts from dashboard analysis when their incomplete broker history would overstate live holdings.
 - Add idempotent `--sync-mep-balances` support for per-source current MEP projections. Changed balances update one existing manual projection in place, so reruns cannot double the Overview value.
 - Document the required Ghostfolio account setup and the deliberate performance limitation of a current-value projection without PPI cost-basis history.
+- Support explicit PPI period-return projections with manual historical market data, allowing Ghostfolio to calculate a configured 30-day return while preserving the authoritative current PPI total.
 
 ## v1.0.0 — Stable release
 
