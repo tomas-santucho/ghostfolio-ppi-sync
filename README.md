@@ -77,13 +77,38 @@ LOG_LEVEL=info
 
 `GHOSTFOLIO_ACCESS_TOKEN` can be used instead of `GHOSTFOLIO_SECURITY_TOKEN`. The latter is exchanged for an ephemeral Ghostfolio Bearer token at runtime.
 
-Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER_FALLBACK`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `BOOTSTRAP_HOLDINGS_FILE`, `BOOTSTRAP_CUTOFF_DATE`, and `SYNC_LOCK_PATH`.
+Optional variables include `PPI_ACCOUNT_IDS`, `PPI_ORDER_ENRICHMENT`, `PPI_ORDER_FALLBACK`, `PPI_SYMBOL_OVERRIDES`, `PPI_CASH_ASSETS`, `PPI_CASH_ACTIVITY_IMPORT`, `PPI_MEP_BALANCE_PROJECTION`, `BOOTSTRAP_HOLDINGS_FILE`, `BOOTSTRAP_CUTOFF_DATE`, and `SYNC_LOCK_PATH`.
 
 Normal sync supports either one legacy `GHOSTFOLIO_ACCOUNT_ID`, or an explicit pair of `GHOSTFOLIO_ACCOUNT_ID_ARS` and `GHOSTFOLIO_ACCOUNT_ID_USD`. The pair must be configured together and cannot be combined with the legacy variable. In split-target mode, all normalized ARS activities go to the ARS target and normalized USD activities—including MEP and CCL instruments represented in ISO USD—go to the USD target. Import batches are separated by target so uncertain-write recovery remains account-safe. Bootstrap and synthetic Ghostfolio diagnostic commands require the legacy single-target variable.
 
 For per-source reconciliation, use `PPI_GHOSTFOLIO_ACCOUNT_TARGETS` instead. It is a JSON object with one `{ "ARS": "…", "USD": "…" }` target pair for every `PPI_ACCOUNT_IDS` source, and is exclusive with both other target modes. This creates a source-account × currency boundary: four Ghostfolio accounts for two PPI sources. It prevents one source's history from changing another source's holdings.
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
+
+### Current MEP balance projection
+
+Use this mode when PPI's available movement history is incomplete (for example, it contains positions that were closed before the exported range) and you need Ghostfolio's Overview to match PPI's current MEP total. It is deliberately separate from the historical importer: do not point it at the accounts used by `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`.
+
+1. In Ghostfolio, create one USD account per PPI source, for example `PPI MEP vigente - Fuente 1` and `PPI MEP vigente - Fuente 2`. Leave each account's **Cash Balance** at `0`.
+2. Keep historical activity accounts excluded from analysis if their history is known not to reconstruct current holdings. This preserves the audit trail without adding stale positions to Overview.
+3. In PPI, open **Estado de cuenta**, select **MEP**, and record `Total valorizado` for each source in the same order as `PPI_ACCOUNT_IDS`.
+4. Configure the projection using the Ghostfolio account IDs and those MEP values in the same order:
+
+```dotenv
+PPI_ACCOUNT_IDS=first-ppi-source,second-ppi-source
+PPI_MEP_BALANCE_PROJECTION={"accountIds":["ghostfolio-mep-source-1","ghostfolio-mep-source-2"],"values":[2472.29,178.97]}
+```
+
+Run a dry-run first, then persist it:
+
+```bash
+bun run sync --sync-mep-balances --dry-run
+bun run sync --sync-mep-balances
+```
+
+The command maintains exactly one manual BUY activity per source. When PPI's total changes, it updates that activity's quantity in place; it never adds a compensating BUY or SELL. Re-running an unchanged projection yields zero writes. Update the configured MEP values from PPI before each scheduled run; PPI's documented read API exposes positions but not the web application's authoritative `Total valorizado MEP`, so the importer intentionally does not guess broker conversions or PPI Global valuations.
+
+This is a current-value projection, not a performance tracker. Ghostfolio shows zero performance for the manual asset because it has neither PPI's historical cost basis nor a market-price history. That is intentional: inventing a return from a single current balance would be misleading. Use the normal historical importer only for supported securities whose complete transaction history is available; do not combine those accounts with this projection merely to obtain a performance percentage.
 
 ### Configuration precedence
 
@@ -190,6 +215,7 @@ bun run sync --ppi-only
 bun run sync --ppi-orders
 bun run sync --ppi-account
 bun run sync --ghostfolio-only
+bun run sync --sync-mep-balances --dry-run
 bun run sync --bootstrap-holdings --dry-run
 ```
 
@@ -258,6 +284,7 @@ The offline contract corpus in `tests/fixtures/ppi-contract-variants.json` defin
 ## Limitations
 
 - Cash balances, DEPOSIT, WITHDRAWAL, and trade-settlement cash legs are experimental and outside the v1 support contract. `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default; a configured asset map or manual enablement does not establish PPI cash-history coverage or ending-balance reconciliation.
+- `--sync-mep-balances` is an explicit current-value projection, not a reconstruction of PPI positions, cash, or PPI Global lots. It requires the authoritative MEP total for each source from PPI's account view; the command never estimates it from incomplete history.
 - FCI, cauciones, ONs, amortizing bonds, exchanges, and splits are skipped pending explicit mapping rules and fixtures.
 - The observed PPI exchange and split rows have no instrument execution data; they are not converted into synthetic BUY or SELL activities.
 - A standalone commission is reported and skipped unless PPI provides a stable association with its originating trade.

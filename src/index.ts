@@ -5,6 +5,7 @@ import { GhostfolioHttpClient } from './ghostfolio/client.js';
 import { Logger } from './logger.js';
 import { PpiHttpClient } from './ppi/client.js';
 import { acquireRunLock } from './run-lock.js';
+import { syncMepBalanceProjection } from './mep-balance-projection.js';
 import { runSync, runSyncForAccounts, SyncRunError, type SyncSummary } from './sync.js';
 
 function report(summary:SyncSummary,logger:Logger):void {
@@ -27,7 +28,7 @@ function reportSourceAccount(index:number,summary:SyncSummary,logger:Logger):voi
 
 async function main():Promise<void> {
   const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');
-  if(process.argv.includes('--help')||process.argv.includes('-h')) { console.log('ppi-ghostfolio-sync\n\nCommands:\n  --dry-run                  Validate sync without persisting\n  --ppi-only                 Read PPI movements only\n  --ppi-orders               Read PPI historical order count only\n  --ppi-account              Read PPI positions only\n  --ghostfolio-only          Read Ghostfolio activities only\n  --bootstrap-holdings       Import holdings from BOOTSTRAP_HOLDINGS_FILE\n  --ghostfolio-import-dry-run Validate a synthetic Ghostfolio import'); return; }
+  if(process.argv.includes('--help')||process.argv.includes('-h')) { console.log('ppi-ghostfolio-sync\n\nCommands:\n  --dry-run                  Validate sync without persisting\n  --ppi-only                 Read PPI movements only\n  --ppi-orders               Read PPI historical order count only\n  --ppi-account              Read PPI positions only\n  --ghostfolio-only          Read Ghostfolio activities only\n  --bootstrap-holdings       Import holdings from BOOTSTRAP_HOLDINGS_FILE\n  --sync-mep-balances        Project configured current PPI MEP balances\n  --ghostfolio-import-dry-run Validate a synthetic Ghostfolio import'); return; }
   if(process.argv.includes('--bootstrap-holdings')) {
     const file=process.env.BOOTSTRAP_HOLDINGS_FILE;
     if(!file) throw new Error('BOOTSTRAP_HOLDINGS_FILE is required with --bootstrap-holdings');
@@ -50,6 +51,13 @@ async function main():Promise<void> {
     return;
   }
   if(process.argv.includes('--ghostfolio-only')) { const activities=await new GhostfolioHttpClient(loadGhostfolioConfig(process.env)).getActivities(); logger.info(`Ghostfolio connection successful. Found ${activities.length} activities.`); return; }
+  if(process.argv.includes('--sync-mep-balances')) {
+    const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
+    if(!config.mepBalanceProjection)throw new Error('PPI_MEP_BALANCE_PROJECTION is required with --sync-mep-balances');
+    const release=await acquireRunLock();
+    try{const result=await syncMepBalanceProjection(new GhostfolioHttpClient(config.ghostfolio),config.mepBalanceProjection,{dryRun:config.dryRun});logger.info(`MEP balance projection ${config.dryRun?'validated':'synchronized'}: prepared=${result.prepared}; imported=${result.imported}; updated=${result.updated}; duplicates=${result.duplicates}.`);}finally{await release();}
+    return;
+  }
   const ppi=loadPpiConfig(process.env); const ppiClient=new PpiHttpClient(ppi);
   if(process.argv.includes('--ppi-account')) { const positions=await ppiClient.getPositions(ppi.accountId); for(const position of positions) logger.info(`${position.ticker}: ${position.quantity} ${position.currency} (price: ${position.price})`); return; }
   const ppiRange=parseSyncRange(process.env.SYNC_FROM_DATE,process.env.SYNC_TO_DATE);

@@ -16,6 +16,7 @@ const baseEnv=(apiUrl:string):Record<string,string>=>({
   GHOSTFOLIO_ACCOUNT_ID_ARS:'',
   GHOSTFOLIO_ACCOUNT_ID_USD:'',
   PPI_GHOSTFOLIO_ACCOUNT_TARGETS:'',
+  PPI_MEP_BALANCE_PROJECTION:'',
   LOG_LEVEL:'info'
 });
 

@@ -78,6 +78,12 @@ export class GhostfolioHttpClient implements GhostfolioClient {
     throw new Error('Ghostfolio activities response shape unsupported');
   }
 
+  async updateActivity(activity:GhostfolioImportActivity&{id:string}):Promise<void>{
+    const {id,...body}=activity;
+    const res=await this.authorizedFetch(new URL(`/api/v1/activities/${id}`,this.config.url),{method:'PUT',body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
+    if(!res.ok){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio activity update HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'activity update',status:res.status,retryAfterMs:retryAfterMs(res.headers.get('retry-after'))});}
+  }
+
   private async reconcileUncertainBatch(activities:GhostfolioImportActivity[],cause:unknown):Promise<GhostfolioImportActivity[]>{
     const accountId=activities[0]?.accountId;
     const comments=activities.map(activity=>activity.comment);
