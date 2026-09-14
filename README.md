@@ -85,9 +85,9 @@ For per-source reconciliation, use `PPI_GHOSTFOLIO_ACCOUNT_TARGETS` instead. It 
 
 Use `SYNC_FROM_DATE` and optional inclusive `SYNC_TO_DATE` to restrict a historical sync to a controlled date range.
 
-### Current MEP balance projection
+### Current MEP holdings projection
 
-Use this mode when PPI's available movement history is incomplete (for example, it contains positions that were closed before the exported range) and you need Ghostfolio's Overview to match PPI's current MEP total. It is deliberately separate from the historical importer: do not point it at the accounts used by `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`.
+Use this mode when PPI's available movement history is incomplete (for example, it contains positions that were closed before the exported range) and you need Ghostfolio to show the current PPI MEP holdings as well as match its total. It is deliberately separate from the historical importer: do not point it at the accounts used by `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`.
 
 1. In Ghostfolio, create one USD account per PPI source, for example `PPI MEP vigente - Fuente 1` and `PPI MEP vigente - Fuente 2`. Leave each account's **Cash Balance** at `0`.
 2. Keep historical activity accounts excluded from analysis if their history is known not to reconstruct current holdings. This preserves the audit trail without adding stale positions to Overview.
@@ -99,16 +99,18 @@ PPI_ACCOUNT_IDS=first-ppi-source,second-ppi-source
 PPI_MEP_BALANCE_PROJECTION={"accountIds":["ghostfolio-mep-source-1","ghostfolio-mep-source-2"],"values":[2472.29,178.97],"performancePercentages":[3.37,0.21],"performanceDays":30,"asOfDate":"2026-09-12"}
 ```
 
-Run a dry-run first, then persist it:
+Run the holdings projection in dry-run first, then persist it:
 
 ```bash
-bun run sync --sync-mep-balances --dry-run
-bun run sync --sync-mep-balances
+bun run sync --sync-mep-holdings --dry-run
+bun run sync --sync-mep-holdings
 ```
 
-The command maintains exactly one manual BUY activity per source. When PPI's total changes, it updates that activity's quantity in place; it never adds a compensating BUY or SELL. Re-running an unchanged projection yields zero writes. Update the configured MEP values from PPI before each scheduled run; PPI's documented read API exposes positions but not the web application's authoritative `Total valorizado MEP`, so the importer intentionally does not guess broker conversions or PPI Global valuations.
+The command reads PPI's current position groups and maintains one manual BUY per current instrument in each source account. Quantity is taken directly from PPI. The configured source total is allocated across PPI's current group and instrument values, so Ghostfolio Holdings exposes the instruments while Overview remains equal to the authoritative MEP total. It never adds compensating BUY or SELL activities; an unchanged run yields zero writes. Update the configured MEP values from PPI before each scheduled run because PPI's documented read API does not expose the web application's authoritative `Total valorizado MEP`.
 
-Without `performancePercentages`, Ghostfolio correctly shows `0.00%`: a current-balance-only projection has neither PPI's historical cost basis nor a market-price history. To project PPI's real, displayed period return, copy `Rendimiento últ. 30 días` for each source into `performancePercentages`, set `performanceDays` to `30`, and set `asOfDate` to PPI's valuation date. The synchronizer writes a manual price at the period start and a current price of `1`, then uses a single BUY at the corresponding start-of-period price. Ghostfolio therefore calculates the supplied PPI period return while the displayed current value remains the configured PPI total. This is a period-return projection—not all-time, lot-level performance—and must be refreshed from PPI each run.
+Without `performancePercentages`, Ghostfolio correctly shows `0.00%`: a current-holdings projection has neither PPI's historical cost basis nor a market-price history. To project PPI's real, displayed period return, copy `Rendimiento últ. 30 días` for each source into `performancePercentages`, set `performanceDays` to `30`, and set `asOfDate` to PPI's valuation date. The synchronizer writes a manual price at the period start and a current price for each holding. Ghostfolio therefore calculates the supplied PPI period return while the displayed current value remains the configured PPI total. This is a source-level period-return projection—not all-time, lot-level performance—and must be refreshed from PPI each run.
+
+`--sync-mep-balances` remains available only for a deliberately aggregate, one-asset-per-source view. Use `--sync-mep-holdings` for the normal operational view. If migrating from aggregate snapshots, import the holdings first, verify that their total matches PPI, and then remove the old aggregate activities so the total is not counted twice.
 
 ### Configuration precedence
 
@@ -216,6 +218,7 @@ bun run sync --ppi-orders
 bun run sync --ppi-account
 bun run sync --ghostfolio-only
 bun run sync --sync-mep-balances --dry-run
+bun run sync --sync-mep-holdings --dry-run
 bun run sync --bootstrap-holdings --dry-run
 ```
 

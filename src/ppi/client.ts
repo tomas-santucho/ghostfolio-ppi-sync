@@ -3,7 +3,7 @@ import { HttpRequestError, PpiRateLimitError, retryAfterMs, retryDelay, sanitize
 import { parsePpiJson } from './decimals.js';
 import { PpiAuth } from './auth.js';
 import { balancesSchema, instrumentsSchema, orderSchema, ordersSchema, positionsResponseSchema, transactionsSchema } from './schemas.js';
-import type { PpiAccountBalance, PpiClient, PpiInstrument, PpiOrder, PpiPosition, PpiTransaction } from './types.js';
+import type { PpiAccountBalance, PpiClient, PpiInstrument, PpiOrder, PpiPosition, PpiPositionGroup, PpiTransaction } from './types.js';
 
 type Fetcher=(input:RequestInfo|URL,init?:RequestInit)=>Promise<Response>;
 type Sleeper=(milliseconds:number)=>Promise<void>;
@@ -22,4 +22,5 @@ export class PpiHttpClient implements PpiClient {
   private async getAccountBody(accountId:string):Promise<unknown>{if(!this.auth.accessToken)await this.authenticate();const url=new URL('/api/1.0/Account/BalancesAndPositions',this.config.apiUrl);url.searchParams.set('accountNumber',accountId);return (await this.get(url,'account')).json();}
   async getAccount(accountId:string):Promise<PpiAccountBalance[]>{const body=await this.getAccountBody(accountId);if(Array.isArray(body))return balancesSchema.parse(body);if(!body||typeof body!=='object')throw new Error('PPI account response is not an object or array');const value=body as {groupedAvailability?:unknown};if(!Array.isArray(value.groupedAvailability))throw new Error('PPI account response has no groupedAvailability array');return balancesSchema.parse(value.groupedAvailability);}
   async getPositions(accountId:string):Promise<PpiPosition[]>{const body=await this.getAccountBody(accountId);if(!body||typeof body!=='object'||Array.isArray(body))throw new Error('PPI account response has no groupedInstruments positions');return positionsResponseSchema.parse(body).groupedInstruments.flatMap(group=>group.instruments);}
+  async getPositionGroups(accountId:string):Promise<PpiPositionGroup[]>{const body=await this.getAccountBody(accountId);if(!body||typeof body!=='object'||Array.isArray(body))throw new Error('PPI account response has no groupedInstruments positions');return positionsResponseSchema.parse(body).groupedInstruments;}
 }

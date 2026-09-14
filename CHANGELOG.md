@@ -12,6 +12,7 @@
 - Add idempotent `--sync-mep-balances` support for per-source current MEP projections. Changed balances update one existing manual projection in place, so reruns cannot double the Overview value.
 - Document the required Ghostfolio account setup and the deliberate performance limitation of a current-value projection without PPI cost-basis history.
 - Support explicit PPI period-return projections with manual historical market data, allowing Ghostfolio to calculate a configured 30-day return while preserving the authoritative current PPI total.
+- Add `--sync-mep-holdings`, which exposes PPI's current instruments and quantities in Ghostfolio Holdings while allocating each source's authoritative MEP total across those positions.
 
 ## v1.0.0 — Stable release
 
