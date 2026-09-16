@@ -2,6 +2,7 @@
 
 ## v1.0.0 — Stable release
 
+- Add the final comprehensive `RELEASE_NOTES_v1.0.0.md` operator guide for installation, configuration, historical sync, MEP holdings projection, Docker, recovery, and release verification.
 - Add an explicit ARS/USD Ghostfolio target mode for normal sync, routing normalized activities by ISO currency while preserving the legacy single-target configuration.
 - Keep target batches isolated so Ghostfolio uncertain-write reconciliation remains account-safe, and reject partial or ambiguous target configuration before contacting either service.
 - Keep PPI cash reconciliation outside the v1 contract; `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default.
