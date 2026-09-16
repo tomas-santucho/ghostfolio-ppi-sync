@@ -1,9 +1,12 @@
 import { readFile } from 'node:fs/promises';
-import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseBootstrapCutoffDate, parseSyncRange } from './config.js';
+import { loadConfig, loadGhostfolioConfig, loadPpiConfig, parseBootstrapCutoffDate, parseSyncRange, requireSingleGhostfolioAccount } from './config.js';
 import { importBootstrapHoldings, parseBootstrapHoldings } from './bootstrap.js';
 import { GhostfolioHttpClient } from './ghostfolio/client.js';
 import { Logger } from './logger.js';
 import { PpiHttpClient } from './ppi/client.js';
+import { acquireRunLock } from './run-lock.js';
+import { syncMepBalanceProjection } from './mep-balance-projection.js';
+import { syncMepHoldingsProjection } from './mep-holdings-projection.js';
 import { runSync, runSyncForAccounts, SyncRunError, type SyncSummary } from './sync.js';
 
 function report(summary:SyncSummary,logger:Logger):void {
@@ -26,7 +29,7 @@ function reportSourceAccount(index:number,summary:SyncSummary,logger:Logger):voi
 
 async function main():Promise<void> {
   const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');
-  if(process.argv.includes('--help')||process.argv.includes('-h')) { console.log('ppi-ghostfolio-sync\n\nCommands:\n  --dry-run                  Validate sync without persisting\n  --ppi-only                 Read PPI movements only\n  --ppi-orders               Read PPI historical order count only\n  --ppi-account              Read PPI positions only\n  --ghostfolio-only          Read Ghostfolio activities only\n  --bootstrap-holdings       Import holdings from BOOTSTRAP_HOLDINGS_FILE\n  --ghostfolio-import-dry-run Validate a synthetic Ghostfolio import'); return; }
+  if(process.argv.includes('--help')||process.argv.includes('-h')) { console.log('ppi-ghostfolio-sync\n\nCommands:\n  --dry-run                  Validate sync without persisting\n  --ppi-only                 Read PPI movements only\n  --ppi-orders               Read PPI historical order count only\n  --ppi-account              Read PPI positions only\n  --ghostfolio-only          Read Ghostfolio activities only\n  --bootstrap-holdings       Import holdings from BOOTSTRAP_HOLDINGS_FILE\n  --sync-mep-balances        Project configured current PPI MEP balances\n  --sync-mep-holdings        Project current PPI MEP holdings by instrument\n  --ghostfolio-import-dry-run Validate a synthetic Ghostfolio import'); return; }
   if(process.argv.includes('--bootstrap-holdings')) {
     const file=process.env.BOOTSTRAP_HOLDINGS_FILE;
     if(!file) throw new Error('BOOTSTRAP_HOLDINGS_FILE is required with --bootstrap-holdings');
@@ -35,18 +38,34 @@ async function main():Promise<void> {
     if(!cutoffDate) throw new Error('BOOTSTRAP_CUTOFF_DATE is required with --bootstrap-holdings');
     const holdings=parseBootstrapHoldings(JSON.parse(await readFile(file,'utf8')));
     const dryRun=process.argv.includes('--dry-run')||process.env.DRY_RUN==='true';
-    const result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),config.accountId,{dryRun,cutoffDate});
+    const release=await acquireRunLock();
+    let result;
+    try{result=await importBootstrapHoldings(holdings,process.env.PPI_ACCOUNT_ID??'bootstrap',new GhostfolioHttpClient(config),requireSingleGhostfolioAccount(config,'--bootstrap-holdings'),{dryRun,cutoffDate});}finally{await release();}
     logger.info(`Bootstrap ${dryRun?'validated':'imported'} ${result.imported} holdings; skipped ${result.duplicates} duplicates.`);
     return;
   }
   if(process.argv.includes('--ghostfolio-import-dry-run')) {
     const config=loadGhostfolioConfig(process.env);
-    const result=await new GhostfolioHttpClient(config).importActivities([{accountId:config.accountId,type:'BUY',date:'2024-01-01T00:00:00.000Z',symbol:'MSFT',currency:'USD',quantity:1,unitPrice:1,fee:0,dataSource:'YAHOO',comment:'ppi-sync-test-dry-run'}],{dryRun:true});
+    const result=await new GhostfolioHttpClient(config).importActivities([{accountId:requireSingleGhostfolioAccount(config,'--ghostfolio-import-dry-run'),type:'BUY',date:'2024-01-01T00:00:00.000Z',symbol:'MSFT',currency:'USD',quantity:1,unitPrice:1,fee:0,dataSource:'YAHOO',comment:'ppi-sync-test-dry-run'}],{dryRun:true});
     logger.info('Ghostfolio import dry-run successful. No data was persisted.');
     logger.info(`Validated activities: ${result.imported}`);
     return;
   }
   if(process.argv.includes('--ghostfolio-only')) { const activities=await new GhostfolioHttpClient(loadGhostfolioConfig(process.env)).getActivities(); logger.info(`Ghostfolio connection successful. Found ${activities.length} activities.`); return; }
+  if(process.argv.includes('--sync-mep-balances')) {
+    const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
+    if(!config.mepBalanceProjection)throw new Error('PPI_MEP_BALANCE_PROJECTION is required with --sync-mep-balances');
+    const release=await acquireRunLock();
+    try{const result=await syncMepBalanceProjection(new GhostfolioHttpClient(config.ghostfolio),config.mepBalanceProjection,{dryRun:config.dryRun});logger.info(`MEP balance projection ${config.dryRun?'validated':'synchronized'}: prepared=${result.prepared}; imported=${result.imported}; updated=${result.updated}; duplicates=${result.duplicates}; manualMarketData=${result.marketData}.`);}finally{await release();}
+    return;
+  }
+  if(process.argv.includes('--sync-mep-holdings')) {
+    const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
+    if(!config.mepBalanceProjection)throw new Error('PPI_MEP_BALANCE_PROJECTION is required with --sync-mep-holdings');
+    const release=await acquireRunLock();
+    try{const ppi=new PpiHttpClient(config.ppi);const groups=await Promise.all(config.ppi.accountIds.map(accountId=>ppi.getPositionGroups(accountId)));const result=await syncMepHoldingsProjection(new GhostfolioHttpClient(config.ghostfolio),config.mepBalanceProjection,groups,{dryRun:config.dryRun});logger.info(`MEP holdings projection ${config.dryRun?'validated':'synchronized'}: prepared=${result.prepared}; imported=${result.imported}; updated=${result.updated}; duplicates=${result.duplicates}; manualMarketData=${result.marketData}.`);}finally{await release();}
+    return;
+  }
   const ppi=loadPpiConfig(process.env); const ppiClient=new PpiHttpClient(ppi);
   if(process.argv.includes('--ppi-account')) { const positions=await ppiClient.getPositions(ppi.accountId); for(const position of positions) logger.info(`${position.ticker}: ${position.quantity} ${position.currency} (price: ${position.price})`); return; }
   const ppiRange=parseSyncRange(process.env.SYNC_FROM_DATE,process.env.SYNC_TO_DATE);
@@ -54,7 +73,10 @@ async function main():Promise<void> {
   if(process.argv.includes('--ppi-orders')) { const orders=await ppiClient.getOrders({accountId:ppi.accountId,...ppiRange}); logger.info(`PPI connection successful. Found ${orders.length} historical orders.`); return; }
   const config=loadConfig({...process.env,DRY_RUN:process.argv.includes('--dry-run')?'true':process.env.DRY_RUN});
   const ghostfolio=new GhostfolioHttpClient(config.ghostfolio);
-  const summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message),onAccountComplete:(index,result)=>reportSourceAccount(index,result,logger)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,ghostfolioAccountId:config.ghostfolio.accountId,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)});
+  const release=await acquireRunLock();
+  let summary:SyncSummary;
+  const targets={ghostfolioAccountId:config.ghostfolio.accountId,ghostfolioAccountIdsByCurrency:config.ghostfolio.accountIdsByCurrency,ghostfolioAccountIdsByPpiAccount:config.ghostfolio.accountIdsByPpiAccount};
+  try{summary=config.ppi.accountIds.length>1?await runSyncForAccounts(ppiClient,ghostfolio,config.ppi.accountIds,{...targets,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message),onAccountComplete:(index,result)=>reportSourceAccount(index,result,logger)}):await runSync(ppiClient,ghostfolio,{ppiAccountId:config.ppi.accountId,...targets,from:config.syncFromDate,to:config.syncToDate,dryRun:config.dryRun,enrichOrders:config.ppi.orderEnrichment,orderFallback:config.ppi.orderFallback,symbolOverrides:config.symbolOverrides,cashAssets:config.cashAssets,cashActivityImport:config.cashActivityImport,warn:message=>logger.warn(message)});}finally{await release();}
   report(summary,logger); logger.info(config.dryRun?'Dry-run completed.':'Sync completed successfully.');
 }
 void main().catch(error=>{if(error instanceof SyncRunError){const logger=new Logger(process.env.LOG_LEVEL==='debug'||process.env.LOG_LEVEL==='warn'||process.env.LOG_LEVEL==='error'?process.env.LOG_LEVEL:'info');logger.error(error.message);report(error.summary,logger);}else console.error(error instanceof Error?error.message:'Fatal error');process.exitCode=1;});

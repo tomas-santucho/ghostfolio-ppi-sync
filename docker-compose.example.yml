@@ -2,4 +2,12 @@ services:
   ppi-ghostfolio-sync:
     build: .
     env_file: .env
+    environment:
+      # Keep this shared across every one-shot container on this Compose project.
+      SYNC_LOCK_PATH: /var/lib/ppi-sync/ghostfolio-ppi-sync.lock
+    volumes:
+      - ppi-sync-lock:/var/lib/ppi-sync
     restart: "no"
+
+volumes:
+  ppi-sync-lock:

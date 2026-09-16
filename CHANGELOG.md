@@ -1,5 +1,52 @@
 # Changelog
 
+## v1.0.0 — Stable release
+
+- Add an explicit ARS/USD Ghostfolio target mode for normal sync, routing normalized activities by ISO currency while preserving the legacy single-target configuration.
+- Keep target batches isolated so Ghostfolio uncertain-write reconciliation remains account-safe, and reject partial or ambiguous target configuration before contacting either service.
+- Keep PPI cash reconciliation outside the v1 contract; `PPI_CASH_ACTIVITY_IMPORT=false` remains the required default.
+- Record the completed two-source dry-run/import/rerun validation and its intentional currency-only aggregation boundary in `MULTI_ACCOUNT_VALIDATION.md`.
+- Add per-source ARS/USD target pairs through `PPI_GHOSTFOLIO_ACCOUNT_TARGETS`, so two PPI sources can be isolated across four Ghostfolio accounts.
+- Skip a SELL that would create a negative holding when PPI history lacks its opening acquisition; this avoids presenting closed historical positions as current debt.
+- Record the verified MEP current-balance projection and exclude historical activity accounts from dashboard analysis when their incomplete broker history would overstate live holdings.
+- Add idempotent `--sync-mep-balances` support for per-source current MEP projections. Changed balances update one existing manual projection in place, so reruns cannot double the Overview value.
+- Document the required Ghostfolio account setup and the deliberate performance limitation of a current-value projection without PPI cost-basis history.
+- Support explicit PPI period-return projections with manual historical market data, allowing Ghostfolio to calculate a configured 30-day return while preserving the authoritative current PPI total.
+- Add `--sync-mep-holdings`, which exposes PPI's current instruments and quantities in Ghostfolio Holdings while allocating each source's authoritative MEP total across those positions.
+
+## v1.0.0-rc.1 — Scope freeze
+
+- Freeze the v1 release contract: cash balances, DEPOSIT/WITHDRAWAL, and trade-settlement cash legs are experimental and disabled by default, not supported v1 capabilities.
+- Defer issue #22 to post-v1 rather than marking it complete: the full 2016–2026 import is duplicate-free, but ARS/MEP ending balances require source flows intentionally outside v1 scope.
+- State explicitly that supported operations reconcile within their own semantics; v1 does not promise PPI cash-ledger reconstruction or cash-balance reconciliation.
+- Set the release package version to `1.0.0-rc.1` and document the RC feature freeze.
+- Publish `v1.0.0-rc.1` successfully to GHCR as an OCI multi-platform index; the exact platform digests are recorded in the RC evidence.
+- Record the operator's successful server-side Docker pull, smoke, and shared-lock validation; close the container-publication gate.
+- Add the RC failure-campaign record, runtime-version evidence, and configuration-precedence/bootstrap command guidance.
+- Complete the final operator documentation and maintenance sweep; close the RC failure-campaign and operator-readiness gates.
+
+## v1.0.0 — Alcance y branch multi-arquitectura
+
+- Require an explicit `PPI_CASH_ENABLED_BUCKETS` allowlist whenever cash import is enabled, preventing unverified USD Global or CCL buckets from being imported accidentally.
+- Record controlled real-import and duplicate-free rerun evidence for ARS and MEP cash movements; leave USD Global and CCL disabled pending source evidence.
+- Record that the controlled ARS/MEP holdings do not yet reconcile to current PPI cash balances, so normal cash import remains disabled pending issue #22.
+- Run the complete authorized test-account history, import its 90 validated activities, and verify a duplicate-free rerun; ATVI corporate-action rows now skip safely instead of failing Ghostfolio validation.
+- Mount a shared Compose lock volume and make foreign-container locks fail closed, with a bounded stale-lock lease.
+- Make container builds reproducible by requiring the committed Bun lockfile without an install fallback.
+- Refresh PPI and security-token Ghostfolio sessions exactly once after a `401`; a repeated authorization failure stops safely.
+- Prevent concurrent sync/bootstrap imports with an atomic PID lock file; `SYNC_LOCK_PATH` can coordinate scheduled executions.
+- Fail safe when Ghostfolio declares a paginated activities response, and explicitly skip recognized corporate actions instead of creating synthetic trades.
+- Update `V1_SCOPE.md` with the implemented hardening, remaining RC evidence, and the ATVI settlement boundary.
+- Added `V1_SCOPE.md` with the proposed v1 support contract, release blockers, hardening work, deferred instrument families, and approval criteria.
+- Prepare the release branch with package metadata at `1.0.0`.
+- Publish GHCR images for both `linux/amd64` and `linux/arm64` using Docker Buildx and QEMU.
+
+## v0.5.1 — Historical order fallback
+
+- Import completed PPI historical orders when their accounting movements are not available yet.
+- Reuse stable PPI order IDs to prevent duplicates when the corresponding movement is published later.
+- Keep order enrichment and fallback read-only; no PPI trading endpoints are used.
+
 ## v0.5.0 — Release branch
 
 - Added `v0.5.0_final_handoff.md` as the authoritative continuation record, including branch state, verified work, open acceptance criteria, reconciliation boundaries, and safe next steps.

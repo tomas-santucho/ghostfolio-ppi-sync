@@ -1,25 +1,14 @@
 import type { GhostfolioConfig } from '../config.js';
 import { GhostfolioImportError, GhostfolioUnknownImportOutcomeError, HttpRequestError, retryAfterMs, retryDelay, sanitizeHttpDetail } from '../errors.js';
 import { activitiesSchema, importResponseSchema } from './schemas.js';
-import type { GhostfolioActivity, GhostfolioClient, GhostfolioImportActivity, GhostfolioImportResult } from './types.js';
+import type { GhostfolioActivity, GhostfolioClient, GhostfolioImportActivity, GhostfolioImportResult, GhostfolioManualAssetProfile } from './types.js';
 
 type Fetcher=(input:RequestInfo|URL,init?:RequestInit)=>Promise<Response>;
 type Sleeper=(milliseconds:number)=>Promise<void>;
 type ImportBatchResult={activities:GhostfolioActivity[];validationFailures:GhostfolioActivity[]};
-type ManualAssetProfile={
-  symbol:string;
-  name:string;
-  currency:string;
-  dataSource:'MANUAL';
-  countries:[];
-  holdings:[];
-  isActive:true;
-  marketData:[];
-  sectors:[];
-};
 const sleep:Sleeper=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 function manualAssetProfiles(activities:GhostfolioImportActivity[]){
-  const profiles=new Map<string,ManualAssetProfile>();
+  const profiles=new Map<string,GhostfolioManualAssetProfile>();
   for(const activity of activities)if(activity.dataSource==='MANUAL'&&activity.symbol){
     const key=`${activity.dataSource}:${activity.symbol}`;
     if(!profiles.has(key))profiles.set(key,{
@@ -55,13 +44,46 @@ export class GhostfolioHttpClient implements GhostfolioClient {
 
   private async headers(){return {'content-type':'application/json',authorization:`Bearer ${await this.token()}`};}
 
+  private async authorizedFetch(input:RequestInfo|URL,init:RequestInit):Promise<Response>{
+    let refreshed=false;
+    for(;;){
+      const res=await this.fetcher(input,{...init,headers:await this.headers()});
+      if(res.status!==401||refreshed||!this.config.securityToken)return res;
+      refreshed=true;
+      this.bearerToken=undefined;
+    }
+  }
+
   async getActivities():Promise<GhostfolioActivity[]>{
-    const res=await this.fetcher(new URL('/api/v1/activities',this.config.url),{headers:await this.headers(),signal:AbortSignal.timeout(15000)});
+    const res=await this.authorizedFetch(new URL('/api/v1/activities',this.config.url),{signal:AbortSignal.timeout(15000)});
     if(!res.ok){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio activities HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'activities',status:res.status,retryAfterMs:retryAfterMs(res.headers.get('retry-after'))});}
     const body:unknown=await res.json();
     if(Array.isArray(body))return activitiesSchema.parse(body) as GhostfolioActivity[];
-    if(body&&typeof body==='object'&&Array.isArray((body as {activities?:unknown}).activities))return activitiesSchema.parse((body as {activities:unknown[]}).activities) as GhostfolioActivity[];
+    if(body&&typeof body==='object'&&Array.isArray((body as {activities?:unknown}).activities)){
+      const response=body as {activities:unknown[];count?:unknown;total?:unknown;hasMore?:unknown;pagination?:unknown;nextPage?:unknown};
+      if(response.hasMore===true||response.pagination!==undefined||response.nextPage!==undefined||(typeof response.count==='number'&&response.count>response.activities.length)||(typeof response.total==='number'&&response.total>response.activities.length))throw new Error('Ghostfolio activities response is paginated; exhaustive reconciliation is unavailable');
+      return activitiesSchema.parse(response.activities) as GhostfolioActivity[];
+    }
     throw new Error('Ghostfolio activities response shape unsupported');
+  }
+
+  async updateActivity(activity:GhostfolioImportActivity&{id:string}):Promise<void>{
+    const res=await this.authorizedFetch(new URL(`/api/v1/activities/${activity.id}`,this.config.url),{method:'PUT',body:JSON.stringify(activity),signal:AbortSignal.timeout(15000)});
+    if(!res.ok){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio activity update HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'activity update',status:res.status,retryAfterMs:retryAfterMs(res.headers.get('retry-after'))});}
+  }
+
+  async upsertManualAssetProfiles(profiles:GhostfolioManualAssetProfile[],options:{dryRun?:boolean}={}):Promise<void>{
+    if(profiles.length===0)return;
+    const url=new URL('/api/v1/import',this.config.url);
+    if(options.dryRun)url.searchParams.set('dryRun','true');
+    for(let attempt=0;attempt<3;attempt++){
+      const res=await this.authorizedFetch(url,{method:'POST',body:JSON.stringify({activities:[],assetProfiles:profiles}),signal:AbortSignal.timeout(15000)});
+      if(res.ok)return;
+      const retryAfter=retryAfterMs(res.headers.get('retry-after'));
+      const transient=res.status===408||res.status===429||res.status>=500;
+      if(!transient||attempt===2){const detail=sanitizeHttpDetail((await res.text()).replace(/\s+/g,' '));throw new HttpRequestError(`Ghostfolio manual market-data HTTP error ${res.status}${detail?`: ${detail}`:''}`,{service:'Ghostfolio',operation:'manual market-data',status:res.status,retryAfterMs:retryAfter});}
+      await this.sleeper(retryDelay(attempt,retryAfter));
+    }
   }
 
   private async reconcileUncertainBatch(activities:GhostfolioImportActivity[],cause:unknown):Promise<GhostfolioImportActivity[]>{
@@ -81,9 +103,8 @@ export class GhostfolioHttpClient implements GhostfolioClient {
     if(options.dryRun)url.searchParams.set('dryRun','true');
     let pending=activities;
     for(let attempt=0;attempt<3;attempt++){
-      const headers=await this.headers();
       let res:Response;
-      try{res=await this.fetcher(url,{method:'POST',headers,body:JSON.stringify({activities:pending,assetProfiles:manualAssetProfiles(pending)}),signal:AbortSignal.timeout(15000)});}catch(cause){
+      try{res=await this.authorizedFetch(url,{method:'POST',body:JSON.stringify({activities:pending,assetProfiles:manualAssetProfiles(pending)}),signal:AbortSignal.timeout(15000)});}catch(cause){
         pending=await this.reconcileUncertainBatch(pending,cause);
         if(pending.length===0)return {activities:[],validationFailures:[]};
         if(attempt===2)throw new GhostfolioUnknownImportOutcomeError({pending:pending.length,cause});

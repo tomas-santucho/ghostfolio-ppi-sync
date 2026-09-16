@@ -49,3 +49,31 @@ export function enrichTransactionsWithOrderIds(transactions: PpiTransaction[], o
     return candidates.length === 1 ? {...transaction, externalId: `order:${candidates[0].id}`} : transaction;
   });
 }
+
+function isCompleted(order: PpiOrder): boolean {
+  return /FILLED|EXECUT|EJECUT|COMPLET|CONFIRM/i.test(order.status);
+}
+
+function orderTransaction(order: PpiOrder): PpiTransaction {
+  const directionText = direction(order.operation) === 'SELL' ? 'Venta' : 'Compra';
+  return {
+    agreementDate: order.date,
+    currency: order.currency,
+    amount: order.amount,
+    price: order.price,
+    description: `${directionText} ${order.ticker}`,
+    ticker: order.ticker,
+    quantity: order.quantity,
+    balance: '0',
+    externalId: `order:${order.id}`,
+  };
+}
+
+// A completed order can precede its accounting movement in PPI. Use it only
+// when no movement with the same stable trade economics is already present.
+export function addMissingCompletedOrders(transactions: PpiTransaction[], orders: PpiOrder[]): PpiTransaction[] {
+  const missing = orders.filter(order => isCompleted(order)
+    && !transactions.some(transaction => matches(transaction, order))
+    && !transactions.some(transaction => transaction.externalId === `order:${order.id}`));
+  return [...transactions, ...missing.map(orderTransaction)];
+}
